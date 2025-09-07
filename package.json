@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'static site' && exit 0",
-    "start": "vercel dev"
+    "start": "vercel dev",
+      "scripts": {
+    "start": "node server.js",
+    "render-build": "echo \"(no build)\""
   },
   "dependencies": {
     "livekit-server-sdk": "^2.5.0",
