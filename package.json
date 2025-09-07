@@ -5,7 +5,7 @@
   "license": "MIT",
     "scripts": {
     "start": "node server.js",
-    "render-build": "echo \"(no build)\""
+    "render-build": "(no build)\"
   },
   "dependencies": {
     "livekit-server-sdk": "^2.5.0",
