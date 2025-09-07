@@ -1,0 +1,14 @@
+{
+  "name": "livekit-multicam",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'static site' && exit 0",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "livekit-server-sdk": "^2.5.0"
+  }
+}
