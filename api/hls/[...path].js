@@ -1,113 +1,61 @@
 // api/hls/[...path].js
-// CommonJS ليتوافق تلقائياً مع Vercel Functions
-const https = require('https');
-const http = require('http');
-const { URL } = require('url');
-
-const ORIGIN_BASE = process.env.ORIGIN_BASE || 'http://46.152.116.98';
-const ALLOW_INSECURE_TLS = String(process.env.ALLOW_INSECURE_TLS || 'true') === 'true';
-
-const insecureHttpsAgent = new https.Agent({ rejectUnauthorized: !ALLOW_INSECURE_TLS });
-
-function requestOnce(urlStr, headers) {
-  const u = new URL(urlStr);
-  const isHttps = u.protocol === 'https:';
-  const client = isHttps ? https : http;
-  const opts = { method: 'GET', headers, agent: isHttps ? insecureHttpsAgent : undefined };
-  return new Promise((resolve, reject) => {
-    const req = client.request(urlStr, opts, (up) => resolve(up));
-    req.on('error', reject);
-    req.end();
-  });
-}
-
-async function fetchWithRedirects(urlStr, headers, maxRedirects = 5) {
-  let current = urlStr;
-  for (let i = 0; i <= maxRedirects; i++) {
-    const up = await requestOnce(current, headers);
-    const sc = up.statusCode || 0;
-    if (sc >= 300 && sc < 400 && up.headers.location) {
-      const loc = up.headers.location;
-      up.resume();
-      current = new URL(loc, current).toString();
-      continue;
-    }
-    return { up, finalUrl: current };
-  }
-  throw new Error('Too many redirects');
-}
-
-function rewriteManifest(text, basePath) {
-  return text.split('\n').map((line) => {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) return line;
-    if (/^https?:\/\//i.test(t)) {
-      try {
-        const url = new URL(t);
-        return `${basePath}${url.pathname}${url.search || ''}`;
-      } catch { return line; }
-    }
-    const parent = basePath.replace(/\/[^/]*$/, '/');
-    return parent + t;
-  }).join('\n');
-}
+const { Readable } = require('node:stream');
 
 module.exports = async (req, res) => {
-  try {
-    // CORS + أنواع
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    if (/\.m3u8(\?.*)?$/i.test(req.url)) {
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-    } else if (/\.(ts|m4s)(\?.*)?$/i.test(req.url)) {
-      res.setHeader('Content-Type', 'video/mp2t');
-    }
+  // السماح للـ CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS');
 
-    // مثال: /api/hls/live/playlist.m3u8  →  /hls/live/playlist.m3u8
-    const hlsPathWithQuery = req.url.replace(/^\/api/, '');
-    const upstreamUrl = ORIGIN_BASE.replace(/\/$/, '') + hlsPathWithQuery;
-
-    const headers = {
-      ...req.headers,
-      host: new URL(ORIGIN_BASE).host,
-      ...(req.headers.range ? { Range: req.headers.range } : {})
-    };
-
-    const { up } = await fetchWithRedirects(upstreamUrl, headers);
-    const sc = up.statusCode || 200;
-
-    if (up.headers['content-type']) res.setHeader('Content-Type', up.headers['content-type']);
-    if (up.headers['content-length']) res.setHeader('Content-Length', up.headers['content-length']);
-    if (up.headers['accept-ranges']) res.setHeader('Accept-Ranges', up.headers['accept-ranges']);
-    if (up.headers['content-range']) res.setHeader('Content-Range', up.headers['content-range']);
-
-    if (sc >= 400) {
-      res.statusCode = sc;
-      up.resume();
-      return res.end();
-    }
-
-    // إن كانت manifest → نعيد كتابة الروابط لتعود إلى /hls على Vercel
-    if (/\.m3u8(\?.*)?$/i.test(hlsPathWithQuery)) {
-      let data = '';
-      up.setEncoding('utf8');
-      up.on('data', (c) => (data += c));
-      up.on('end', () => {
-        const rewritten = rewriteManifest(data, hlsPathWithQuery);
-        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-        res.statusCode = 200;
-        res.end(rewritten);
-      });
-      up.on('error', () => { res.statusCode = 502; res.end('Upstream error'); });
-      return;
-    }
-
-    // المقاطع تيارية
-    res.statusCode = sc;
-    up.pipe(res);
-  } catch (e) {
-    console.error('HLS proxy error', e);
-    res.statusCode = 500;
-    res.end('Proxy error');
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
   }
+
+  const base = (process.env.ORIGIN_BASE || '').replace(/\/+$/, '');
+  if (!base) {
+    res.status(500).send('Missing ORIGIN_BASE env');
+    return;
+  }
+
+  // path catch-all
+  const pathParts = Array.isArray(req.query.path) ? req.query.path : [req.query.path].filter(Boolean);
+  const path = pathParts.join('/');
+
+  // احفظ الكويري كما هو
+  const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+
+  const target = `${base}/${path}${qs}`;
+
+  // مرّر بعض الهيدر المهم (خاصة Range)
+  const fwdHeaders = {};
+  for (const h of ['range', 'user-agent', 'accept', 'accept-encoding', 'origin', 'referer']) {
+    if (req.headers[h]) fwdHeaders[h] = req.headers[h];
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(target, { method: 'GET', headers: fwdHeaders });
+  } catch (e) {
+    res.status(502).send('Upstream fetch failed');
+    return;
+  }
+
+  res.status(upstream.status);
+  upstream.headers.forEach((v, k) => {
+    // اترك الترميز لـ Vercel
+    if (k.toLowerCase() === 'transfer-encoding') return;
+    res.setHeader(k, v);
+  });
+
+  // HLS يكون لايف؛ لا نريد تخزين
+  res.setHeader('Cache-Control', 'no-store');
+
+  if (!upstream.body) {
+    res.end();
+    return;
+  }
+
+  // web stream -> node stream
+  Readable.fromWeb(upstream.body).pipe(res);
 };
