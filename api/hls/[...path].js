@@ -1,11 +1,10 @@
 // api/hls/[...path].js
-// Proxy HLS with HTTPS support + manifest rewrite back to /api/hls
+// HLS proxy with HTTPS support + manifest rewrite back to /api/hls
 const { Readable } = require('node:stream');
 const { Agent } = require('undici');
 
-const ORIGIN_BASE = (process.env.ORIGIN_BASE || '').replace(/\/+$/, '');
-// بعض السيرفرات تضع HLS تحت بادئة (غالباً /hls). اجعلها قابلة للتهيئة.
-const UPSTREAM_PREFIX = (process.env.UPSTREAM_PREFIX ?? '/hls').replace(/\/+$/, '');
+const ORIGIN_BASE = (process.env.ORIGIN_BASE || '').replace(/\/+$/, '');      // مثال: https://stream.example.com
+const UPSTREAM_PREFIX = (process.env.UPSTREAM_PREFIX ?? '/hls').replace(/\/+$/, ''); // مثال: /hls أو / إن لم يكن هناك بادئة
 const ALLOW_INSECURE_TLS = String(process.env.ALLOW_INSECURE_TLS || 'false') === 'true';
 
 const dispatcher = ALLOW_INSECURE_TLS ? new Agent({ connect: { rejectUnauthorized: false } }) : undefined;
@@ -14,21 +13,19 @@ function isM3U8(p) { return /\.m3u8(\?.*)?$/i.test(p); }
 function parentDir(p) { return p.replace(/\/[^/]*$/, '/'); }
 
 function rewriteManifest(text, publicBase) {
-  const root = '/api/hls';                   // جذر البروكسي العام
-  const parent = parentDir(publicBase);      // مجلد الملف الحالي تحت /api/hls/...
-
+  const root = '/api/hls';
+  const parent = parentDir(publicBase);
   return text.split('\n').map((line) => {
     const t = line.trim();
     if (!t || t.startsWith('#')) return line;
-
-    // روابط مطلقة → نعيد توجيهها عبر البروكسي
+    // مطلق → أعد توجيهه عبر /api/hls
     if (/^https?:\/\//i.test(t)) {
       try {
         const u = new URL(t);
         return `${root}${u.pathname}${u.search || ''}`;
       } catch { return line; }
     }
-    // روابط نسبية → على نفس المجلد
+    // نسبي → على نفس المجلد
     return parent + t;
   }).join('\n');
 }
@@ -46,14 +43,22 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS');
     if (req.method === 'OPTIONS') { res.status(204).end(); return; }
 
-    // /api/hls/live/playlist.m3u8  → parts = ['live','playlist.m3u8']
-    const parts = Array.isArray(req.query.path) ? req.query.path : [req.query.path].filter(Boolean);
-    const subPath = '/' + parts.join('/');                                   // /live/playlist.m3u8
+    // استخرج المسار بعد /api/hls سواء من req.query أو من req.url احتياطاً
+    let subPath = '';
+    const q = req.query || {};
+    if (q && q.path) {
+      if (Array.isArray(q.path)) subPath = '/' + q.path.join('/');
+      else subPath = '/' + String(q.path).replace(/^\/+/, '');
+    } else {
+      const m = req.url.match(/\/api\/hls(\/[^?]*)/i);
+      subPath = m ? m[1] : '/';
+    }
     const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    const upstreamPath = `${UPSTREAM_PREFIX}${subPath}`.replace(/\/{2,}/g, '/');   // /hls/live/playlist.m3u8
-    const upstreamUrl = `${ORIGIN_BASE}${upstreamPath}${qs}`;
 
-    // مرّر بعض الهيدرز المهمة (خصوصًا Range)
+    const upstreamPath = `${UPSTREAM_PREFIX}${subPath}`.replace(/\/{2,}/g, '/'); // مثال: /hls/live/playlist.m3u8
+    const upstreamUrl  = `${ORIGIN_BASE}${upstreamPath}${qs}`;
+
+    // مرّر بعض الهيدرز المهمة
     const fwdHeaders = {};
     for (const h of ['range', 'user-agent', 'accept', 'accept-encoding', 'origin', 'referer']) {
       if (req.headers[h]) fwdHeaders[h] = req.headers[h];
@@ -67,10 +72,15 @@ module.exports = async (req, res) => {
       res.setHeader(k, v);
     });
     res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Upstream-URL', upstreamUrl); // للتشخيص
 
-    if (!up.ok) { if (up.body) try { await up.arrayBuffer(); } catch {} res.end(); return; }
+    if (!up.ok) {
+      // لا نكسر HLS: نعيد نفس الحالة
+      if (up.body) try { await up.arrayBuffer(); } catch {}
+      res.end();
+      return;
+    }
 
-    // إعادة كتابة المانيفست ليعود عبر /api/hls (بدون vercel.json)
     const publicBase = `/api/hls${subPath}${qs}`;
     if (isM3U8(subPath)) {
       const text = await up.text();
