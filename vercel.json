@@ -4,6 +4,10 @@
     { "source": "/hls/(.*)", "destination": "/api/hls/$1" }
   ],
   "functions": {
-    "api/**/*.js": { "runtime": "nodejs20.x" }
+    "api/**/*.js": {
+      "runtime": "nodejs20.x",
+      "memory": 512,
+      "maxDuration": 15
+    }
   }
 }
