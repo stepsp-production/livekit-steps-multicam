@@ -240,8 +240,7 @@
       <button data-cam="cam7"><span>Sineflex</span></button>
     </div>
 
-    <!-- ===== لوحة LiveKit ===== -->
-    <div id="lkPanel" aria-label="LiveKit Panel">
+  <div id="lkPanel" aria-label="LiveKit Panel">
       <h3>الغرفة المباشرة (LiveKit)</h3>
       <div id="lkControls">
         <label class="text" for="lkRoom">الغرفة:</label>
@@ -257,9 +256,7 @@
           <option>studio-9</option>
           <option>studio-10</option>
         </select>
-
         <input id="lkName" placeholder="اسم العرض (اختياري)" />
-
         <button id="lkJoin">انضم للغرفة</button>
         <button id="lkLeave" disabled>مغادرة</button>
         <button id="lkToggleCam" disabled>الكاميرا</button>
@@ -270,20 +267,19 @@
     </div>
   </div>
 
-  <!-- التسخين خارج الشاشة -->
   <div id="preloadBin" aria-hidden="true"></div>
 
-  <!-- ===== مصادر البث (هام: وسم واحد فقط) ===== -->
+  <!-- مصادر البث عبر البروكسي -->
   <script>
     window.sources = {
-    main:  '/api/hls/live/playlist.m3u8',
-    cam1:  '/api/hls/lastone/playlist.m3u8',
-    cam2:  '/api/hls/live2/playlist.m3u8',
-    cam3:  '/api/hls/live3/playlist.m3u8',
-    cam4:  '/api/hls/live4/playlist.m3u8',
-    cam5:  '/api/hls/live5/playlist.m3u8',
-    cam6:  '/api/hls/live6/playlist.m3u8',
-    cam7:  '/api/hls/live7/playlist.m3u8'
+      main:  '/api/hls/live/playlist.m3u8',
+      cam1:  '/api/hls/lastone/playlist.m3u8',
+      cam2:  '/api/hls/live2/playlist.m3u8',
+      cam3:  '/api/hls/live3/playlist.m3u8',
+      cam4:  '/api/hls/live4/playlist.m3u8',
+      cam5:  '/api/hls/live5/playlist.m3u8',
+      cam6:  '/api/hls/live6/playlist.m3u8',
+      cam7:  '/api/hls/live7/playlist.m3u8'
     };
   </script>
 
