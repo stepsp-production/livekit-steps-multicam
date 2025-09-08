@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "livekit-server-sdk": "^2.5.0",
-    "undici": "^6.19.8"
+    "undici": "^6.19.8",
+    "livekit-server-sdk": "^2.5.0"
   }
 }
