@@ -1,12 +1,9 @@
 {
   "version": 2,
-  "routes": [
-    { "src": "^/hls/(.*)$", "dest": "/api/hls/$1" },
-    { "src": "^/api/(.*)$", "dest": "/api/$1" }
+  "rewrites": [
+    { "source": "/hls/(.*)", "destination": "/api/hls/$1" }
   ],
   "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
+    "api/**/*.js": { "runtime": "nodejs20.x" }
   }
 }
