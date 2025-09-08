@@ -191,7 +191,8 @@
           <div style="color:#fff;font-weight:800;margin-bottom:6px">ابدأ التشغيل</div>
           <div style="font-size:12px;color:#eaeaf0b3">سيبدأ تشغيل الخط الرئيسي مع المزامنة • الصوت مكتوم افتراضيًا</div>
         </div>
-        <button id="startBtn" aria-label="ابدأ التشغيل الآن">تشغيل/بدء المزامنة</button>
+        <!-- أهم تعديل: type="button" -->
+        <button id="startBtn" type="button" aria-label="ابدأ التشغيل الآن">تشغيل/بدء المزامنة</button>
       </div>
     </div>
 
@@ -240,7 +241,8 @@
       <button data-cam="cam7"><span>Sineflex</span></button>
     </div>
 
-  <div id="lkPanel" aria-label="LiveKit Panel">
+    <!-- ===== لوحة LiveKit ===== -->
+    <div id="lkPanel" aria-label="LiveKit Panel">
       <h3>الغرفة المباشرة (LiveKit)</h3>
       <div id="lkControls">
         <label class="text" for="lkRoom">الغرفة:</label>
@@ -256,7 +258,9 @@
           <option>studio-9</option>
           <option>studio-10</option>
         </select>
+
         <input id="lkName" placeholder="اسم العرض (اختياري)" />
+
         <button id="lkJoin">انضم للغرفة</button>
         <button id="lkLeave" disabled>مغادرة</button>
         <button id="lkToggleCam" disabled>الكاميرا</button>
@@ -267,9 +271,10 @@
     </div>
   </div>
 
+  <!-- التسخين خارج الشاشة -->
   <div id="preloadBin" aria-hidden="true"></div>
 
-  <!-- مصادر البث عبر البروكسي -->
+  <!-- مصادر البث (عبر بروكسي Vercel) -->
   <script>
     window.sources = {
       main:  '/api/hls/live/playlist.m3u8',
@@ -279,12 +284,12 @@
       cam4:  '/api/hls/live4/playlist.m3u8',
       cam5:  '/api/hls/live5/playlist.m3u8',
       cam6:  '/api/hls/live6/playlist.m3u8',
-      cam7:  '/api/hls/live7/playlist.m3u8'
+      cam7:  '/api/hls/live7/playlist.m3u8',
     };
   </script>
 
   <script>
-    /* ========= HLS إعداداتك كما هي ========= */
+    /* ========= إعدادات HLS ========= */
     const HLS_CONFIG = {
       lowLatencyMode: false,
       startPosition: -1,
@@ -460,11 +465,7 @@
       }
 
       video.addEventListener('loadedmetadata', ()=>{ video.play().catch(()=>{}); }, {once:true});
-      video.addEventListener('canplay', ()=>{ 
-        [...container.children].slice(0,-1).forEach(ch=>{ 
-          try{ const v=ch.querySelector?.('video'); v?.pause?.(); v?.__hls?.destroy?.(); ch.remove(); }catch(e){} 
-        }); 
-      }, {once:true});
+      video.addEventListener('canplay', ()=>{ [...container.children].slice(0,-1).forEach(ch=>{ try{ const v=ch.querySelector?.('video'); v?.pause?.(); v?.__hls?.destroy?.(); ch.remove(); }catch(e){} }); }, {once:true});
       return video;
     }
 
@@ -504,7 +505,26 @@
     function toggleFillMode(){ fillMode=!fillMode; applySplitClasses(); }
     function toggleMainZoom(){ if(splitMode!==0) return; isMainFull=!isMainFull; root.classList.toggle('main-full',isMainFull); positionUtilityDock(); }
 
-    function initPlayers(){ if(!mainPlayer){ mainPlayer=createVideo(mainContainer, sources.main, 'main'); } activePlayer=createVideo(camContainer, sources[currentCam], 'active'); }
+    /* ملاحظة: نستخدم نسخة واحدة فقط من initPlayersOnce */
+    function eagerInitMain(){
+      if(mainPlayer) return;
+      mainPlayer = createVideo(mainContainer, sources.main, 'main');
+      if(mainPlayer.__hls){ try{ mainPlayer.__hls.startLoad(0); }catch(e){} }
+      setTimeout(()=>{ try{ mainPlayer.load?.(); }catch(e){} }, 1000);
+    }
+    function eagerInitActive(){
+      if(activePlayer) return;
+      activePlayer = createVideo(camContainer, sources[currentCam], 'active');
+      if(activePlayer.__hls){ try{ activePlayer.__hls.startLoad(0); }catch(e){} }
+    }
+    function initPlayersOnce(){ 
+      if(inited) return; 
+      inited=true; 
+      eagerInitMain();     
+      eagerInitActive();   
+      const warmList = [sources.main, sources.cam1, sources.cam2, sources.cam3, sources.cam4, sources.cam5, sources.cam6, sources.cam7];
+      setTimeout(()=>warmList.forEach(u=>{ try{ fetch(u, {mode:'no-cors', cache:'reload'}).catch(()=>{}); }catch(e){} }), 120);
+    }
 
     async function playEntity(ent, muted=true){ try{ ent.muted=!!muted; await ent.play(); }catch(e){} }
     async function startPlayback(){ 
@@ -567,37 +587,41 @@
       if(newcomer instanceof HTMLVideoElement){ newcomer.addEventListener('canplay',promote,{once:true}); newcomer.play().catch(()=>{}); } else { promote(); }
     }
 
-    function warmFetch(url){
-      try{ fetch(url, {mode:'no-cors', cache:'reload'}).catch(()=>{}); }catch(e){}
-    }
-    const warmList = [
-      sources.main, sources.cam1, sources.cam2, sources.cam3, sources.cam4, sources.cam5, sources.cam6, sources.cam7
-    ];
+    /* === مستمعو الأحداث === */
 
-    function eagerInitMain(){
-      if(mainPlayer) return;
-      mainPlayer = createVideo(mainContainer, sources.main, 'main');
-      if(mainPlayer.__hls){ try{ mainPlayer.__hls.startLoad(0); }catch(e){} }
-      setTimeout(()=>{ try{ mainPlayer.load?.(); }catch(e){} }, 1000);
-    }
-    function eagerInitActive(){
-      if(activePlayer) return;
-      activePlayer = createVideo(camContainer, sources[currentCam], 'active');
-      if(activePlayer.__hls){ try{ activePlayer.__hls.startLoad(0); }catch(e){} }
-    }
-    function initPlayersOnce(){ 
-      if(inited) return; 
-      inited=true; 
-      eagerInitMain();     
-      eagerInitActive();   
-      setTimeout(()=>warmList.forEach(warmFetch), 120);
-    }
+    // أهم تعديل: ابدأ التهيئة قبل البدء
+    startBtn.addEventListener('click', async () => {
+      try {
+        initPlayersOnce();
+        await startPlayback();
+        positionUtilityDock();
+      } catch (e) {
+        console.error('start error', e);
+      }
+    });
+
+    btnSplit.addEventListener('click', ()=>{ toggleSplitMode(); positionUtilityDock(); });
+    btnFill.addEventListener('click',  ()=>{ toggleFillMode();  positionUtilityDock(); });
+    btnSound.addEventListener('click', toggleSound);
+    mainContainer.addEventListener('click', ()=>{ if(splitMode===0){ toggleMainZoom(); positionUtilityDock(); }});
+
+    gPlay.addEventListener('click', togglePlayPause);
+    gBack.addEventListener('click', ()=>jumpBy(-5));
+    gFwd .addEventListener('click', ()=>jumpBy(+5));
+    scrub.addEventListener('input', ()=>{ isScrubbing=true; });
+    scrub.addEventListener('change', async()=>{ const nt=parseFloat(scrub.value)||0; await seekMainTo(nt); await seekActiveTo(pdtAlignedTarget(nt)); isScrubbing=false; });
+
+    camControls.addEventListener('click',(e)=>{ const b=e.target.closest('button[data-cam]'); if(!b) return; switchCam(b.getAttribute('data-cam'), b); });
+
+    document.addEventListener('keydown',(e)=>{
+      if(e.key===' '||e.key==='Enter'){ e.preventDefault(); startBtn.click(); }
+      if(e.key==='S'||e.key==='s'){ toggleSplitMode(); positionUtilityDock(); }
+      if(e.key==='F'||e.key==='f'){ toggleMainZoom(); positionUtilityDock(); }
+      if(e.key==='M'||e.key==='m'){ toggleSound(); }
+    });
 
     window.onYouTubeIframeAPIReady=()=>{ initPlayersOnce(); };
-    window.addEventListener('DOMContentLoaded',  ()=>{ 
-      initPlayersOnce(); 
-      positionUtilityDock(); 
-    });
+    window.addEventListener('DOMContentLoaded',  ()=>{ initPlayersOnce(); positionUtilityDock(); });
 
     (function autoUi(){ let t=null; const wake=()=>{ document.body.classList.add('ui-awake'); clearTimeout(t); t=setTimeout(()=>document.body.classList.remove('ui-awake'), 1800); }; ['mousemove','touchstart','touchmove','keydown','click'].forEach(ev=>window.addEventListener(ev,wake,{passive:true})); wake();})();
   </script>
@@ -658,12 +682,13 @@
       if(lkRoom) return;
 
       // تأكيد تفاعل المستخدم للسماح بالوسائط
+      initPlayersOnce();
       await startPlayback();
 
       const roomName = lkRoomSel.value;
       const displayName = lkNameInput.value.trim() || undefined;
 
-      const { token, wsUrl, identity } = await fetchLiveKitToken({ room: roomName, name: displayName });
+      const { token, wsUrl } = await fetchLiveKitToken({ room: roomName, name: displayName });
 
       lkRoom = await LiveKit.connect(wsUrl, token, { autoSubscribe: true, stopLocalTrackOnUnpublish: true });
 
