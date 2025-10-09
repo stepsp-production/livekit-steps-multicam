@@ -66,8 +66,8 @@
 
     #gatePlay{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,rgba(0,0,0,.55),rgba(0,0,0,.2))}
     #gatePlay.hidden{display:none}
-    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bd);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bd);color:#fff;background:#111a;font-size:18px}
+    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bد);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bد);color:#fff;background:#111a;font-size:18px}
     #startBtn{min-width:160px}
 
     /* القائمة الجانبية */
@@ -169,16 +169,19 @@
     <div id="timeLabel">00:00 / 00:00</div>
   </div>
 
-  <!-- BASE لمسارات HLS عبر البروكسي (اتركها فارغة لاستخدام /api/hls/* من Cloudflare Worker أو Render) -->
+  <!-- اضبط BASE لمسارات HLS إلى العامل العامل لديك -->
   <script>
-    window.HLS_BASE = "";
+    // استخدم الـ Worker الذي يمرّر /hls/* إلى المصدر الحقيقي
+    window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
+    // لو أردت توجيهها إلى Render بدلاً من العامل:
+    // window.HLS_BASE = "https://steps-livekit-api.onrender.com";
   </script>
 
   <script>
     /* مصادر HLS */
     (function(){
       const BASE=(window.HLS_BASE||"").replace(/\/$/,"");
-      const build=(p)=>BASE?`${BASE}${p}`:p;
+      const build=(p)=>BASE?`${BASE}${p.replace(/^\/api\/hls/,'/hls')}`:p; // worker يستقبل /hls/*
       window.sources={
         main:build("/api/hls/live/playlist.m3u8"),
         cam1:build("/api/hls/lastone/playlist.m3u8"),
