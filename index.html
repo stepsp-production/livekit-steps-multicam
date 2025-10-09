@@ -183,14 +183,14 @@
       const BASE=(window.HLS_BASE||"").replace(/\/$/,"");
       const build=(p)=>BASE?`${BASE}${p.replace(/^\/api\/hls/,'/hls')}`:p; // worker يستقبل /hls/*
       window.sources={
-        main:build("/api/hls/live/playlist.m3u8"),
-        cam1:build("/api/hls/lastone/playlist.m3u8"),
-        cam2:build("/api/hls/live2/playlist.m3u8"),
-        cam3:build("/api/hls/live3/playlist.m3u8"),
-        cam4:build("/api/hls/live4/playlist.m3u8"),
-        cam5:build("/api/hls/live5/playlist.m3u8"),
-        cam6:build("/api/hls/live6/playlist.m3u8"),
-        cam7:build("/api/hls/live7/playlist.m3u8")
+        main: build("/hls/live/playlist.m3u8"),
+        cam1: build("/hls/lastone/playlist.m3u8"),
+        cam2: build("/hls/live2/playlist.m3u8"),
+        cam3: build("/hls/live3/playlist.m3u8"),
+        cam4: build("/hls/live4/playlist.m3u8"),
+        cam5: build("/hls/live5/playlist.m3u8"),
+        cam6: build("/hls/live6/playlist.m3u8"),
+        cam7: build("/hls/live7/playlist.m3u8")
       };
       window.channelMap=[
         {id:'main',label:'MAIN',src:sources.main},
