@@ -171,35 +171,28 @@
 
   <!-- اضبط BASE لمسارات HLS -->
   <script>
-    // استخدم العامل لديك على Cloudflare Workers:
+    // اختَر واحدًا:
+    // 1) عامل Cloudflare Workers يمرّر /hls/*:
     window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
-    // أو اتركها فارغة إذا كنت تقدّم /api/hls/* من نفس الدومين (Render/Worker):
+    // 2) أو اتركه فارغًا لو لديك /api/hls/* على نفس الدومين:
     // window.HLS_BASE = "";
   </script>
 
+  <!-- تعريف المصادر (يجب أن يسبق أي استخدام لها) -->
   <script>
-    /* ==== مصادر HLS ==== */
     (function(){
-      const BASE = (window.HLS_BASE||"").replace(/\/$/,"");
-      const buildHls = (p) => {
-        // نُخرج دائمًا رابطًا ينتهي بـ .m3u8
-        if (BASE) {
-          // العامل يستقبل /hls/*
-          return `${BASE}${p.replace(/^\/api\/hls/,'/hls')}`;
-        }
-        // بدون BASE نفترض أن لدينا /api/hls/* على نفس الدومين
-        return p;
-      };
+      const BASE=(window.HLS_BASE||"").replace(/\/$/,"");
+      const build=(p)=> BASE ? `${BASE}${p.replace(/^\/api\/hls/,'/hls')}` : p;
 
       window.sources={
-        main:buildHls("/api/hls/live/playlist.m3u8"),
-        cam1:buildHls("/api/hls/lastone/playlist.m3u8"),
-        cam2:buildHls("/api/hls/live2/playlist.m3u8"),
-        cam3:buildHls("/api/hls/live3/playlist.m3u8"),
-        cam4:buildHls("/api/hls/live4/playlist.m3u8"),
-        cam5:buildHls("/api/hls/live5/playlist.m3u8"),
-        cam6:buildHls("/api/hls/live6/playlist.m3u8"),
-        cam7:buildHls("/api/hls/live7/playlist.m3u8")
+        main:build("/api/hls/live/playlist.m3u8"),
+        cam1:build("/api/hls/lastone/playlist.m3u8"),
+        cam2:build("/api/hls/live2/playlist.m3u8"),
+        cam3:build("/api/hls/live3/playlist.m3u8"),
+        cam4:build("/api/hls/live4/playlist.m3u8"),
+        cam5:build("/api/hls/live5/playlist.m3u8"),
+        cam6:build("/api/hls/live6/playlist.m3u8"),
+        cam7:build("/api/hls/live7/playlist.m3u8")
       };
 
       window.channelMap=[
@@ -211,15 +204,13 @@
         {id:'cam5',label:'Cam5',src:sources.cam5},
         {id:'cam6',label:'Drone',src:sources.cam6},
         {id:'cam7',label:'Sineflex',src:sources.cam7}
-      };
+      ];
     })();
   </script>
 
+  <!-- ===== إعدادات HLS + المشغّل ===== -->
   <script>
-    /* ===== إعدادات HLS + منطق المشغّل ===== */
     const SAFETY_EDGE=0.80, SHOW_MIN_BUF=1.25, STARVED_RESEEK=0.25;
-
-    // التعرف الصحيح على روابط HLS (سواء /hls أو /api/hls أو مطلقة)
     const hasHlsM3U8 = (u) => typeof u === 'string' && /\.m3u8(\?.*)?$/i.test(u);
 
     const HLS_CFG={
@@ -238,12 +229,12 @@
     function isAvc(l){return /avc1/i.test(l?.codecs||l?.codecsVideo||"");}
     function pickBestAvc(levels,capHeight=480){
       if(!levels?.length) return -1;
-      const avc=levels.map((l,i)=>({i,h:l.height||0,avc:isAvc(l)})).filter(x=>x.avc);
+      const avc=levels.map((l,i)=>({i,h:l.height||0,avc:/avc1/i.test(l?.codecs||l?.codecsVideo||"")})).filter(x=>x.avc);
       if(!avc.length) return 0;
       let c=avc.filter(x=>x.h && x.h<=capHeight); if(!c.length) c=avc;
       c.sort((a,b)=>a.h-b.h); return c[c.length-1].i;
     }
-    function highestAvcIndex(levels){let m=-1;(levels||[]).forEach((l,i)=>{if(isAvc(l))m=i;});return m>=0?m:((levels&&levels.length)?levels.length-1:-1);}
+    function highestAvcIndex(levels){let m=-1;(levels||[]).forEach((l,i)=>{if(/avc1/i.test(l?.codecs||l?.codecsVideo||""))m=i;});return m>=0?m:((levels&&levels.length)?levels.length-1:-1);}
 
     function getSeekableRange(v){try{const r=v.seekable;if(!r||!r.length)return null;return{start:r.start(r.length-1),end:r.end(r.length-1)};}catch(e){return null;}}
     function capLiveEdge(v,t){const m=getSeekableRange(v); if(!m) return t; return Math.min(t, m.end - SAFETY_EDGE);}
@@ -331,7 +322,7 @@
     function mountTo(container, node){ container.appendChild(node); }
 
     function initMain(){
-      const {wrap,video}=createVideoElement(sources.main);
+      const {wrap,video}=createVideoElement(window.sources.main);
       mountTo(mainContainer,wrap);
       wrap.style.opacity='1';
       mainPlayer=video;
@@ -339,7 +330,7 @@
     function getOrCreateCam(id){
       let ent=playersCache.get(id);
       if(ent) return ent;
-      const {wrap,video}=createVideoElement(sources[id]);
+      const {wrap,video}=createVideoElement(window.sources[id]);
       mountTo(camContainer,wrap);
       const rec={wrap,video,ready:false};
       video.addEventListener('canplay',()=>{rec.ready=true;},{once:true});
@@ -378,7 +369,7 @@
 
     /* ===== تبديل الكاميرا بدون تقطّع ===== */
     async function setActiveCamSmooth(id){
-      if(!sources[id] || id===currentCam) return;
+      if(!window.sources[id] || id===currentCam) return;
       currentCam=id; markActiveList();
       const target=getOrCreateCam(id);
       const v=target.video, w=target.wrap;
@@ -518,7 +509,7 @@
     });
   </script>
 
-  <!-- ===== LiveKit: طلب الإذن + الانضمام ===== -->
+  <!-- ===== LiveKit ===== -->
   <script>
     const lkRoomSel   = document.getElementById('lkRoom');
     const lkNameInput = document.getElementById('lkName');
@@ -528,7 +519,7 @@
     const lkToggleMic = document.getElementById('lkToggleMic');
     const lkGrid      = document.getElementById('lkGrid');
 
-    // استخدم واجهة Render مباشرة
+    // عدّل هذا إلى دومين Render الذي يشغّل api/livekit-token
     const API_BASE = 'https://steps-livekit-api.onrender.com';
 
     let lkRoom = null;
