@@ -66,8 +66,8 @@
 
     #gatePlay{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,rgba(0,0,0,.55),rgba(0,0,0,.2))}
     #gatePlay.hidden{display:none}
-    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bد);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bد);color:#fff;background:#111a;font-size:18px}
+    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bd);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bd);color:#fff;background:#111a;font-size:18px}
     #startBtn{min-width:160px}
 
     /* القائمة الجانبية */
@@ -82,7 +82,7 @@
     .stream-item.active{background:rgba(0,0,0,.55);border-color:#ffffff60}
     .stream-name{font-weight:800;font-size:12px;letter-spacing:.4px;text-transform:uppercase}
 
-    /* إخفاء الواجهة عند الخمول (يشمل الأشرطة وأزرار LiveKit) */
+    /* إخفاء الواجهة عند الخمول (يشمل الأشرطة ولوحة LiveKit) */
     .ui-hidden #streamPanel{opacity:0; pointer-events:none}
     .ui-hidden #utilityControls{opacity:0; pointer-events:none}
     .ui-hidden #globalControls{opacity:0; pointer-events:none}
@@ -169,29 +169,39 @@
     <div id="timeLabel">00:00 / 00:00</div>
   </div>
 
-  <!-- اضبط BASE لمسارات HLS إلى العامل العامل لديك -->
+  <!-- اضبط BASE لمسارات HLS -->
   <script>
-    // استخدم الـ Worker الذي يمرّر /hls/* إلى المصدر الحقيقي
+    // استخدم العامل لديك على Cloudflare Workers:
     window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
-    // لو أردت توجيهها إلى Render بدلاً من العامل:
-    // window.HLS_BASE = "https://steps-livekit-api.onrender.com";
+    // أو اتركها فارغة إذا كنت تقدّم /api/hls/* من نفس الدومين (Render/Worker):
+    // window.HLS_BASE = "";
   </script>
 
   <script>
-    /* مصادر HLS */
+    /* ==== مصادر HLS ==== */
     (function(){
-      const BASE=(window.HLS_BASE||"").replace(/\/$/,"");
-      const build=(p)=>BASE?`${BASE}${p.replace(/^\/api\/hls/,'/hls')}`:p; // worker يستقبل /hls/*
-      window.sources={
-        main: build("/hls/live/playlist.m3u8"),
-        cam1: build("/hls/lastone/playlist.m3u8"),
-        cam2: build("/hls/live2/playlist.m3u8"),
-        cam3: build("/hls/live3/playlist.m3u8"),
-        cam4: build("/hls/live4/playlist.m3u8"),
-        cam5: build("/hls/live5/playlist.m3u8"),
-        cam6: build("/hls/live6/playlist.m3u8"),
-        cam7: build("/hls/live7/playlist.m3u8")
+      const BASE = (window.HLS_BASE||"").replace(/\/$/,"");
+      const buildHls = (p) => {
+        // نُخرج دائمًا رابطًا ينتهي بـ .m3u8
+        if (BASE) {
+          // العامل يستقبل /hls/*
+          return `${BASE}${p.replace(/^\/api\/hls/,'/hls')}`;
+        }
+        // بدون BASE نفترض أن لدينا /api/hls/* على نفس الدومين
+        return p;
       };
+
+      window.sources={
+        main:buildHls("/api/hls/live/playlist.m3u8"),
+        cam1:buildHls("/api/hls/lastone/playlist.m3u8"),
+        cam2:buildHls("/api/hls/live2/playlist.m3u8"),
+        cam3:buildHls("/api/hls/live3/playlist.m3u8"),
+        cam4:buildHls("/api/hls/live4/playlist.m3u8"),
+        cam5:buildHls("/api/hls/live5/playlist.m3u8"),
+        cam6:buildHls("/api/hls/live6/playlist.m3u8"),
+        cam7:buildHls("/api/hls/live7/playlist.m3u8")
+      };
+
       window.channelMap=[
         {id:'main',label:'MAIN',src:sources.main},
         {id:'cam1',label:'Cam1',src:sources.cam1},
@@ -201,14 +211,17 @@
         {id:'cam5',label:'Cam5',src:sources.cam5},
         {id:'cam6',label:'Drone',src:sources.cam6},
         {id:'cam7',label:'Sineflex',src:sources.cam7}
-      ];
+      };
     })();
   </script>
 
   <script>
     /* ===== إعدادات HLS + منطق المشغّل ===== */
     const SAFETY_EDGE=0.80, SHOW_MIN_BUF=1.25, STARVED_RESEEK=0.25;
-    const hasUrl=(u)=>typeof u==='string' && /(https?:\/\/[^/]+)?\/api\/hls\/.+\.m3u8(\?.*)?$/i.test(u);
+
+    // التعرف الصحيح على روابط HLS (سواء /hls أو /api/hls أو مطلقة)
+    const hasHlsM3U8 = (u) => typeof u === 'string' && /\.m3u8(\?.*)?$/i.test(u);
+
     const HLS_CFG={
       lowLatencyMode:false,
       liveSyncDurationCount:3, liveMaxLatencyDurationCount:6, maxLiveSyncPlaybackRate:1.0,
@@ -219,7 +232,7 @@
       fragLoadingMaxRetry:6, manifestLoadingMaxRetry:6, levelLoadingMaxRetry:5,
       fragLoadingRetryDelay:350, manifestLoadingRetryDelay:500, levelLoadingRetryDelay:500,
       fragLoadingTimeOut:10000, manifestLoadingTimeOut:8000, levelLoadingTimeOut:8000,
-      xhrSetup:(xhr)=>{try{xhr.withCredentials=false;}catch(e){}}
+      xhrSetup:(xhr)=>{ try{xhr.withCredentials=false;}catch(e){} }
     };
 
     function isAvc(l){return /avc1/i.test(l?.codecs||l?.codecsVideo||"");}
@@ -263,7 +276,6 @@
           }
         }
       });
-      // معالجة الجوع
       const starve=()=>{
         try{
           const m=getSeekableRange(video); if(!m) return;
@@ -284,8 +296,8 @@
       v.style.cssText='width:100%;height:100%;object-fit:contain';
       wrap.appendChild(v);
 
-      if(hasUrl(url) && window.Hls && Hls.isSupported()){attachHlsWithAvc(v,url);}
-      else if(hasUrl(url) && v.canPlayType('application/vnd.apple.mpegURL')){v.src=url;}
+      if(hasHlsM3U8(url) && window.Hls && Hls.isSupported()){attachHlsWithAvc(v,url);}
+      else if(hasHlsM3U8(url) && v.canPlayType('application/vnd.apple.mpegURL')){v.src=url;}
       else {v.src=url;}
       return {wrap, video:v};
     }
@@ -338,7 +350,7 @@
     /* القائمة */
     function buildStreamList(){
       streamList.innerHTML='';
-      (window.channelMap||[]).filter(ch=>hasUrl(ch.src)).forEach(ch=>{
+      (window.channelMap||[]).filter(ch=>hasHlsM3U8(ch.src)).forEach(ch=>{
         const li=document.createElement('li'); li.className='stream-item'; li.dataset.cam=ch.id;
         const name=document.createElement('div'); name.className='stream-name'; name.textContent=ch.label;
         li.appendChild(name);
@@ -477,7 +489,7 @@
     gFwd .addEventListener('click',()=>gSeek( 5));
     gPlay.addEventListener('click',async()=>{
       if(!started) return;
-      if(mainPlayer.paused){ try{await mainPlayer.play();}catch(e){} } else { mainPlayer.pause(); }
+      if(mainPlayer.paused){try{await mainPlayer.play();}catch(e){}} else mainPlayer.pause();
     });
 
     scrub.addEventListener('input',()=>{ if(started) isScrubbing=true; });
@@ -516,7 +528,7 @@
     const lkToggleMic = document.getElementById('lkToggleMic');
     const lkGrid      = document.getElementById('lkGrid');
 
-    // استخدم رابط Render المطلق لتجنّب 404 من Pages
+    // استخدم واجهة Render مباشرة
     const API_BASE = 'https://steps-livekit-api.onrender.com';
 
     let lkRoom = null;
@@ -644,7 +656,7 @@
     });
   </script>
 
-  <!-- Debug اختياري -->
+  <!-- Debug اختياري لـ HLS -->
   <script>
     (function addHlsDebug(){
       function wireDebug(video){
