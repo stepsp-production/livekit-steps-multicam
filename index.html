@@ -29,23 +29,26 @@
   <script src="https://player.vimeo.com/api/player.js"></script>
 
   <!-- محمّل LiveKit مع تعدد المصادر والمهلة الطويلة -->
-  <script>
-    (function loadLiveKitMulti(){
-      if (window.LiveKit) { window.__livekitReady = true; return; }
-      window.__lkLoading = true;
-      function ok(){ window.__livekitReady = true; }
-      function add(src, onerr){
-        var s=document.createElement('script');
-        s.src=src; s.async=true; s.crossOrigin='anonymous'; s.referrerPolicy='no-referrer';
-        s.onload=ok; s.onerror=onerr; document.head.appendChild(s);
-      }
-      add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){
-        add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-          add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){ /* فشل نهائي */ });
-        });
+ <script>
+  (function loadLiveKitMulti(){
+    if (window.LiveKit) { window.__livekitReady = true; return; }
+    window.__livekitReady = false;
+
+    function ok(){ window.__livekitReady = true; }
+    function add(src, onerr){
+      var s=document.createElement('script');
+      s.src=src; s.async=true; s.crossOrigin='anonymous'; s.referrerPolicy='no-referrer';
+      s.onload=ok; s.onerror=onerr; document.head.appendChild(s);
+    }
+
+    // ابدأ بـ jsDelivr → unpkg → cdn.livekit.io (DNS عندك كان فاشل للأخير)
+    add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+      add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+        add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){ /* فشل نهائي */ });
       });
-    })();
-  </script>
+    });
+  })();
+</script>
 
   <!-- أيقونة -->
   <link rel="icon"
