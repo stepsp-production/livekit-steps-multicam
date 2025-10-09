@@ -14,11 +14,10 @@ app.use(morgan("tiny"));
 
 const PORT = process.env.PORT || 10000;
 
-// ---------- ENV ----------
 const LIVEKIT_API_KEY   = process.env.LIVEKIT_API_KEY || "";
 const LIVEKIT_API_SECRET= process.env.LIVEKIT_API_SECRET || "";
-const LIVEKIT_WS_URL    = process.env.LIVEKIT_WS_URL || "";    // wss://....livekit.cloud
-const LIVEKIT_HOST      = process.env.LIVEKIT_HOST || "";      // https://....livekit.cloud
+const LIVEKIT_WS_URL    = process.env.LIVEKIT_WS_URL || "";
+const LIVEKIT_HOST      = process.env.LIVEKIT_HOST || "";
 const SETUP_ADMIN_KEY   = process.env.SETUP_ADMIN_KEY || "";
 
 const ORIGIN_BASE       = (process.env.ORIGIN_BASE || "").replace(/\/+$/,"");
@@ -27,10 +26,8 @@ const ALLOW_INSECURE_TLS= String(process.env.ALLOW_INSECURE_TLS || "false")==="t
 
 const dispatcher = ALLOW_INSECURE_TLS ? new Agent({ connect: { rejectUnauthorized: false } }) : undefined;
 
-// Health
 app.get("/healthz", (req,res)=>res.json({ ok:true }));
 
-// ---------- /api/livekit-token ----------
 app.all("/api/livekit-token", async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -72,7 +69,6 @@ app.all("/api/livekit-token", async (req, res) => {
   }
 });
 
-// ---------- /api/create-rooms ----------
 app.get("/api/create-rooms", async (req, res) => {
   try {
     if (!SETUP_ADMIN_KEY) return res.status(500).json({ error: "Missing SETUP_ADMIN_KEY" });
@@ -112,7 +108,6 @@ app.get("/api/create-rooms", async (req, res) => {
   }
 });
 
-// ---------- /api/hls/* proxy ----------
 function isM3U8(p){ return /\.m3u8(\?.*)?$/i.test(p); }
 function parentDir(p){ return p.replace(/\/[^/]*$/, "/"); }
 function rewriteManifest(text, publicBase){
