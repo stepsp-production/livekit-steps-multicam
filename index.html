@@ -5,50 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Steps Co VIP Player</title>
 
-  <!-- محاولة تخفيف مشاكل الحجب بإتاحة المصادر عبر CSP (قد تتجاوزها إعدادات Cloudflare) -->
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https: data: blob:;
-                 script-src 'self' 'unsafe-inline' https://cdn.livekit.io https://cdn.jsdelivr.net https://unpkg.com;
-                 connect-src 'self' https: wss:;
-                 img-src 'self' https: data: blob:;
-                 style-src 'self' 'unsafe-inline' https:;
-                 media-src 'self' https: data: blob:;
-                 frame-src 'self' https:;">
-  <!-- تحسين DNS/اتصالات مسبقة -->
-  <link rel="preconnect" href="https://cdn.livekit.io" crossorigin>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://unpkg.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.livekit.io">
-  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-  <link rel="dns-prefetch" href="https://unpkg.com">
-
   <!-- Players -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- محمّل LiveKit مع تعدد المصادر والمهلة الطويلة -->
- <script>
-  (function loadLiveKitMulti(){
-    if (window.LiveKit) { window.__livekitReady = true; return; }
-    window.__livekitReady = false;
+  <!-- محمّل LiveKit مع تعدد المصادر (يفضّل jsDelivr ثم unpkg ثم cdn.livekit.io) -->
+  <script>
+    (function loadLiveKitMulti(){
+      if (window.LiveKit) { window.__livekitReady = true; return; }
+      window.__livekitReady = false;
 
-    function ok(){ window.__livekitReady = true; }
-    function add(src, onerr){
-      var s=document.createElement('script');
-      s.src=src; s.async=true; s.crossOrigin='anonymous'; s.referrerPolicy='no-referrer';
-      s.onload=ok; s.onerror=onerr; document.head.appendChild(s);
-    }
+      function ok(){ window.__livekitReady = true; }
+      function add(src, onerr){
+        var s=document.createElement('script');
+        s.src=src; s.async=true; s.crossOrigin='anonymous'; s.referrerPolicy='no-referrer';
+        s.onload=ok; s.onerror=onerr; document.head.appendChild(s);
+      }
 
-    // ابدأ بـ jsDelivr → unpkg → cdn.livekit.io (DNS عندك كان فاشل للأخير)
-    add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-      add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-        add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){ /* فشل نهائي */ });
+      // ابدأ بـ jsDelivr → unpkg → cdn.livekit.io (لتجاوز أي مشاكل DNS)
+      add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+        add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+          add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){ /* فشل نهائي */ });
+        });
       });
-    });
-  })();
-</script>
+    })();
+  </script>
 
   <!-- أيقونة -->
   <link rel="icon"
@@ -58,26 +41,39 @@
     :root{ --btn-bg:#00c19a; --btn-bg-h:#00ad8a; --btn-bg-a:#009e7e; --btn-txt:#fff; --panel-bg:#0b0b0fe6; --panel-bd:#ffffff26; }
     *{box-sizing:border-box} html,body{height:100%}
     body{margin:0;background:#000;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+
     #playerContainer{position:relative;width:100vw;height:100vh}
     .videoFrame{position:absolute;top:0;right:0;width:100%;height:100%;background:#000;overflow:hidden}
+
+    /* المعاينة المصغّرة */
     #mainPreview{position:absolute;top:16px;right:20px;width:22%;height:24%;z-index:6;border:1px solid #fff2;border-radius:18px;cursor:pointer;transition:transform .18s,box-shadow .18s,width .18s,height .18s,top .18s,right .18s,left .18s}
     #mainPreview:hover{box-shadow:0 10px 30px #0008}
     #mainPreview video{display:block;width:100%;height:100%;object-fit:contain}
+
+    /* تقسيم (MAIN يمين دائمًا) */
     .split #mainPreview{top:0;right:0;width:50%;height:100%;border:0;border-radius:0;cursor:default}
     .split #activeCam{top:0;left:0;right:auto;width:50%;height:100%}
-    .split.mode1 #mainPreview video, .split.mode1 #activeCam  video{object-fit:contain; transform:none}
-    .split.mode2 #mainPreview video, .split.mode2 #activeCam  video{object-fit:contain; transform:scale(1.08); transform-origin:center}
-    .split.mode3 #mainPreview video, .split.mode3 #activeCam  video{object-fit:cover; transform:none}
+
+    /* أوضاع التقسيم */
+    .split.mode1 #mainPreview video,
+    .split.mode1 #activeCam  video{object-fit:contain; transform:none}
+    .split.mode2 #mainPreview video,
+    .split.mode2 #activeCam  video{object-fit:contain; transform:scale(1.08); transform-origin:center}
+    .split.mode3 #mainPreview video,
+    .split.mode3 #activeCam  video{object-fit:cover; transform:none}
+
+    /* تكبير المعاينة */
     .main-full #mainPreview{top:0;right:0;width:100%;height:100%;z-index:7;border:0;border-radius:0;cursor:zoom-out}
     .main-full #activeCam{display:none}
     .main-full.cover-one #mainPreview video{object-fit:cover}
+
     .hint{position:absolute;top:20px;right:20px;z-index:8;background:#000a;color:#fff;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid #fff2}
     .split .hint,.main-full .hint{display:none}
 
-    /* أشرطة التحكم + إخفاء تلقائي مع الماوس (مثل قائمة الكاميرات) */
+    /* أشرطة التحكم + إخفاء تلقائي مع الماوس */
     #utilityControls,#globalControls{position:absolute;z-index:12;display:flex;gap:8px;flex-wrap:wrap;transition:opacity .18s}
     #utilityControls{top:10px;right:10px}
-    #globalControls{bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel-bg);padding:10px;border-radius:14px;border:1px solid var(--panel-bd);align-items:center;min-width:340px}
+    #globalControls{bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel-bg);padding:10px;border-radius:14px;border:1px solid var(--panel-bد);align-items:center;min-width:340px}
     #globalControls.hidden{display:none}
 
     button{-webkit-tap-highlight-color:transparent;appearance:none;border:0;outline:0;cursor:pointer;background:var(--btn-bg);color:var(--btn-txt);padding:11px 12px;font-size:12px;font-weight:800;border-radius:12px;letter-spacing:.2px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px #000a,0 0 0 0 rgba(0,193,154,.28);transition:transform .12s,box-shadow .12s,background .12s}
@@ -89,8 +85,8 @@
 
     #gatePlay{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,rgba(0,0,0,.55),rgba(0,0,0,.2))}
     #gatePlay.hidden{display:none}
-    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bd);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bd);color:#fff;background:#111a;font-size:18px}
+    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bد);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bد);color:#fff;background:#111a;font-size:18px}
     #startBtn{min-width:160px}
 
     /* القائمة الجانبية */
@@ -124,7 +120,7 @@
     }
 
     /* ===== LiveKit UI ===== */
-    #lkPanel{position:absolute; bottom:14px; right:14px; z-index:20; background:var(--panel-bg); border:1px solid var(--panel-bd); border-radius:14px; padding:10px; backdrop-filter: blur(8px); display:flex; flex-direction:column; gap:8px; width: min(92vw, 520px);}
+    #lkPanel{position:absolute; bottom:14px; right:14px; z-index:20; background:var(--panel-bg); border:1px solid var(--panel-bد); border-radius:14px; padding:10px; backdrop-filter: blur(8px); display:flex; flex-direction:column; gap:8px; width: min(92vw, 520px);}
     #lkGrid{display:grid; grid-template-columns: repeat( auto-fit, minmax(120px,1fr) ); gap:8px; max-height:34vh; overflow:auto;}
     .tile{position:relative; background:#0b0b0f; border:1px solid #ffffff22; border-radius:10px; overflow:hidden; min-height:90px}
     .tile video{width:100%;height:100%;object-fit:cover;display:block}
@@ -139,6 +135,7 @@
   <div id="lkStatus" role="status" aria-live="polite">جاري تحميل مكتبة LiveKit…</div>
 
   <div id="playerContainer" class="ui-visible" aria-label="مشغّل متعدد الكاميرات">
+    <!-- القائمة الجانبية -->
     <aside id="streamPanel" aria-label="مصادر البث">
       <div class="panel-title">SOURCES</div>
       <ul id="streamList"></ul>
@@ -196,15 +193,20 @@
     <div id="timeLabel">00:00 / 00:00</div>
   </div>
 
-  <!-- إعداد مصدر HLS (بدّل للقيمة الصحيحة لديك) -->
+  <!-- إعدادات الشبكة -->
   <script>
-    window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";  // أو اجعله "" لو لديك /api/hls محليًا
+    // بدّل هذا لو عندك بروكسي HLS مختلف
+    window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
+
+    // غيّر هذا إلى خدمة الـ Render لديك (backend)
+    window.API_BASE = "https://steps-livekit-api.onrender.com";
   </script>
 
   <!-- تعريف المصادر والقنوات -->
   <script>
     (function(){
       const BASE=(window.HLS_BASE||"").replace(/\/$/,"");
+      // إن كان لديك /api/hls محليًا اترك build يرجع المسار كما هو
       const build=(p)=> BASE ? `${BASE}${p.replace(/^\/api\/hls/,'/hls')}` : p;
 
       window.sources={
@@ -239,9 +241,9 @@
     const HLS_CFG={ lowLatencyMode:false, liveSyncDurationCount:3, liveMaxLatencyDurationCount:6, maxLiveSyncPlaybackRate:1.0,
       maxBufferLength:18, backBufferLength:14, maxBufferSize:40*1000*1000, capLevelToPlayerSize:true, enableWorker:true,
       maxBufferHole:0.15, maxSeekHole:0.25, nudgeOffset:0.12, nudgeMaxRetry:10, abrMaxWithRealBitrate:true,
-      fragLoadingMaxRetry:6, manifestLoadingMaxRetry:6, levelLoadingMaxRetry:5, fragLoadingRetryDelay:350,
-      manifestLoadingRetryDelay:500, levelLoadingRetryDelay:500, fragLoadingTimeOut:10000, manifestLoadingTimeOut:8000,
-      levelLoadingTimeOut:8000, xhrSetup:(xhr)=>{ try{xhr.withCredentials=false;}catch(e){} } };
+      fragLoadingMaxRetry:6, manifestLoadingMaxRetry:6, levelLoadingRetryDelay:500, fragLoadingRetryDelay:350,
+      fragLoadingTimeOut:10000, manifestLoadingTimeOut:8000, levelLoadingTimeOut:8000,
+      xhrSetup:(xhr)=>{ try{xhr.withCredentials=false;}catch(e){} } };
 
     function isAvc(l){return /avc1/i.test(l?.codecs||l?.codecsVideo||"");}
     function pickBestAvc(levels,capHeight=480){
@@ -415,8 +417,7 @@
     const lkGrid      = document.getElementById('lkGrid');
     const lkStatus    = document.getElementById('lkStatus');
 
-    // غيّر هذا إلى خدمة Render عندك
-    const API_BASE = 'https://steps-livekit-api.onrender.com';
+    const API_BASE = window.API_BASE || '';
 
     let lkRoom = null;
     let localCamEnabled = true;
@@ -442,12 +443,11 @@
 
     function loadLiveKitNowIfMissing(){
       if (window.LiveKit || window.__livekitReady) return;
-      // محاولة تحميل إضافية فورية
       (function(){
         function add(src, onerr){ var s=document.createElement('script'); s.src=src; s.async=true; s.crossOrigin='anonymous'; s.onload=function(){ window.__livekitReady=true; }; s.onerror=onerr; document.head.appendChild(s); }
-        add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){
-          add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-            add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){});
+        add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+          add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+            add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){});
           });
         });
       })();
@@ -457,7 +457,7 @@
       const t0=Date.now(); showStatus('جاري تحميل مكتبة LiveKit…', true);
       return new Promise((res,rej)=>{
         (function loop(){
-          if (window.LiveKit && window.__livekitReady){ showStatus('', false); return res(true); }
+          if (window.LiveKit && (window.__livekitReady!==false)){ showStatus('', false); return res(true); }
           if (Date.now()-t0>timeoutMs){ showStatus('تعذّر تحميل مكتبة LiveKit. تحقّق من سياسة CSP أو إضافات الحجب.', true); return rej(new Error('LiveKit library did not load')); }
           setTimeout(loop,120);
         })();
@@ -465,6 +465,7 @@
     }
 
     async function fetchLiveKitToken({ room, identity, name }){
+      if(!API_BASE){ throw new Error('API_BASE غير محدد في الصفحة'); }
       const resp = await fetch(`${API_BASE}/api/livekit-token`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room, identity, name })
       });
@@ -477,8 +478,8 @@
       try{
         await ensureMediaPermission();
         loadLiveKitNowIfMissing();
-        await waitForLiveKitReady(20000);  // مهلة أطول
-        if(!window.LiveKit){ throw new Error('LiveKit library is missing (blocked by CSP/AdBlock). اسمح بتحميل cdn.livekit.io/jsdelivr/unpkg.'); }
+        await waitForLiveKitReady(20000);
+        if(!window.LiveKit){ throw new Error('LiveKit library is missing (blocked by CSP/AdBlock).'); }
 
         const roomName = lkRoomSel.value;
         const displayName = lkNameInput.value.trim() || undefined;
