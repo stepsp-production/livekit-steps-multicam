@@ -5,32 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Steps Co VIP Player</title>
 
-  <!-- Players -->
+  <!-- HLS / DASH / YouTube / Vimeo -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- محمّل LiveKit مع تعدد المصادر (يفضّل jsDelivr ثم unpkg ثم cdn.livekit.io) -->
-  <script>
-    (function loadLiveKitMulti(){
-      if (window.LiveKit) { window.__livekitReady = true; return; }
-      window.__livekitReady = false;
-
-      function ok(){ window.__livekitReady = true; }
-      function add(src, onerr){
-        var s=document.createElement('script');
-        s.src=src; s.async=true; s.crossOrigin='anonymous'; s.referrerPolicy='no-referrer';
-        s.onload=ok; s.onerror=onerr; document.head.appendChild(s);
-      }
-
-      // ابدأ بـ jsDelivr → unpkg → cdn.livekit.io (لتجاوز أي مشاكل DNS)
-      add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-        add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-          add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){ /* فشل نهائي */ });
-        });
-      });
-    })();
+  <!-- LiveKit: تحميل تسلسلي عبر <script> (jsDelivr -> unpkg -> livekit.io) -->
+  <!-- نحافظ على 'unsafe-inline' في CSP حتى يعمل onerror هنا -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"
+    onerror="(function(){var s=document.createElement('script');s.src='https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js';s.async=true;s.crossOrigin='anonymous';s.onerror=function(){var s2=document.createElement('script');s2.src='https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js';s2.async=true;s2.crossOrigin='anonymous';document.head.appendChild(s2);};document.head.appendChild(s);}())">
   </script>
 
   <!-- أيقونة -->
@@ -55,12 +40,9 @@
     .split #activeCam{top:0;left:0;right:auto;width:50%;height:100%}
 
     /* أوضاع التقسيم */
-    .split.mode1 #mainPreview video,
-    .split.mode1 #activeCam  video{object-fit:contain; transform:none}
-    .split.mode2 #mainPreview video,
-    .split.mode2 #activeCam  video{object-fit:contain; transform:scale(1.08); transform-origin:center}
-    .split.mode3 #mainPreview video,
-    .split.mode3 #activeCam  video{object-fit:cover; transform:none}
+    .split.mode1 #mainPreview video, .split.mode1 #activeCam  video{object-fit:contain; transform:none}
+    .split.mode2 #mainPreview video, .split.mode2 #activeCam  video{object-fit:contain; transform:scale(1.08); transform-origin:center}
+    .split.mode3 #mainPreview video, .split.mode3 #activeCam  video{object-fit:cover; transform:none}
 
     /* تكبير المعاينة */
     .main-full #mainPreview{top:0;right:0;width:100%;height:100%;z-index:7;border:0;border-radius:0;cursor:zoom-out}
@@ -126,7 +108,7 @@
     .tile video{width:100%;height:100%;object-fit:cover;display:block}
     .badge{position:absolute; left:6px; top:6px; background:#000a; color:#fff; font-size:10px; padding:2px 6px; border-radius:999px; border:1px solid #fff2}
 
-    /* بانر حالة لتحميل LiveKit */
+    /* بانر حالة بسيط */
     #lkStatus{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;background:#10151faa;border:1px solid #ffffff2a;color:#fff;border-radius:10px;padding:6px 10px;font-size:12px;display:none}
     #lkStatus.show{display:block}
   </style>
@@ -197,8 +179,7 @@
   <script>
     // بدّل هذا لو عندك بروكسي HLS مختلف
     window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
-
-    // غيّر هذا إلى خدمة الـ Render لديك (backend)
+    // بدّل هذا إلى خدمة الـ Render لديك (backend)
     window.API_BASE = "https://steps-livekit-api.onrender.com";
   </script>
 
@@ -206,7 +187,6 @@
   <script>
     (function(){
       const BASE=(window.HLS_BASE||"").replace(/\/$/,"");
-      // إن كان لديك /api/hls محليًا اترك build يرجع المسار كما هو
       const build=(p)=> BASE ? `${BASE}${p.replace(/^\/api\/hls/,'/hls')}` : p;
 
       window.sources={
@@ -441,23 +421,11 @@
     }
     function showStatus(msg, show=true){ if(!lkStatus) return; lkStatus.textContent=msg; lkStatus.classList.toggle('show', !!show); }
 
-    function loadLiveKitNowIfMissing(){
-      if (window.LiveKit || window.__livekitReady) return;
-      (function(){
-        function add(src, onerr){ var s=document.createElement('script'); s.src=src; s.async=true; s.crossOrigin='anonymous'; s.onload=function(){ window.__livekitReady=true; }; s.onerror=onerr; document.head.appendChild(s); }
-        add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-          add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){
-            add("https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js", function(){});
-          });
-        });
-      })();
-    }
-
     async function waitForLiveKitReady(timeoutMs){
       const t0=Date.now(); showStatus('جاري تحميل مكتبة LiveKit…', true);
       return new Promise((res,rej)=>{
         (function loop(){
-          if (window.LiveKit && (window.__livekitReady!==false)){ showStatus('', false); return res(true); }
+          if (window.LiveKit){ showStatus('', false); return res(true); }
           if (Date.now()-t0>timeoutMs){ showStatus('تعذّر تحميل مكتبة LiveKit. تحقّق من سياسة CSP أو إضافات الحجب.', true); return rej(new Error('LiveKit library did not load')); }
           setTimeout(loop,120);
         })();
@@ -477,7 +445,6 @@
       if(lkRoom) return;
       try{
         await ensureMediaPermission();
-        loadLiveKitNowIfMissing();
         await waitForLiveKitReady(20000);
         if(!window.LiveKit){ throw new Error('LiveKit library is missing (blocked by CSP/AdBlock).'); }
 
