@@ -11,8 +11,21 @@
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- LiveKit client -->
-  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+  <!-- LiveKit UMD (أساسي + بديل تلقائي) -->
+  <script>
+    (function loadLiveKit(){
+      var s=document.createElement('script');
+      s.src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js";
+      s.onload=function(){ window.__livekitReady=true; };
+      s.onerror=function(){
+        var alt=document.createElement('script');
+        alt.src="https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js";
+        alt.onload=function(){ window.__livekitReady=true; };
+        document.head.appendChild(alt);
+      };
+      document.head.appendChild(s);
+    })();
+  </script>
 
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230b0b0f'/%3E%3Cpolygon points='26,20 26,44 46,32' fill='%2300c19a'/%3E%3C/svg%3E" />
@@ -171,14 +184,13 @@
 
   <!-- اضبط BASE لمسارات HLS -->
   <script>
-    // اختَر واحدًا:
     // 1) عامل Cloudflare Workers يمرّر /hls/*:
     window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
     // 2) أو اتركه فارغًا لو لديك /api/hls/* على نفس الدومين:
     // window.HLS_BASE = "";
   </script>
 
-  <!-- تعريف المصادر (يجب أن يسبق أي استخدام لها) -->
+  <!-- تعريف المصادر -->
   <script>
     (function(){
       const BASE=(window.HLS_BASE||"").replace(/\/$/,"");
@@ -208,7 +220,7 @@
     })();
   </script>
 
-  <!-- ===== إعدادات HLS + المشغّل ===== -->
+  <!-- ===== المشغّل (HLS + UI) ===== -->
   <script>
     const SAFETY_EDGE=0.80, SHOW_MIN_BUF=1.25, STARVED_RESEEK=0.25;
     const hasHlsM3U8 = (u) => typeof u === 'string' && /\.m3u8(\?.*)?$/i.test(u);
@@ -562,6 +574,17 @@
       }
     }
 
+    async function waitForLiveKitReady(timeoutMs){
+      const t0=Date.now();
+      return new Promise((res,rej)=>{
+        (function loop(){
+          if (window.LiveKit && window.__livekitReady) return res(true);
+          if (Date.now()-t0>timeoutMs) return rej(new Error('LiveKit library did not load'));
+          setTimeout(loop,60);
+        })();
+      });
+    }
+
     async function fetchLiveKitToken({ room, identity, name }){
       const resp = await fetch(`${API_BASE}/api/livekit-token`, {
         method: 'POST',
@@ -580,14 +603,20 @@
       try{
         await ensureMediaPermission();
 
+        // تأكد من تحميل مكتبة LiveKit فعلاً قبل المتابعة
+        await waitForLiveKitReady(6000);
+        if(!window.LiveKit){
+          throw new Error('LiveKit library is missing. تحقق من مانع الإعلانات أو سياسات المتصفح/CSP.');
+        }
+
         const roomName = lkRoomSel.value;
         const displayName = lkNameInput.value.trim() || undefined;
 
         const { token, wsUrl } = await fetchLiveKitToken({ room: roomName, name: displayName });
 
-        lkRoom = await LiveKit.connect(wsUrl, token, { autoSubscribe: true, stopLocalTrackOnUnpublish: true });
+        lkRoom = await window.LiveKit.connect(wsUrl, token, { autoSubscribe: true, stopLocalTrackOnUnpublish: true });
 
-        const tracks = await LiveKit.createLocalTracks({ audio: true, video: { facingMode: 'user' } });
+        const tracks = await window.LiveKit.createLocalTracks({ audio: true, video: { facingMode: 'user' } });
         for (const t of tracks) await lkRoom.localParticipant.publishTrack(t);
 
         for (const pub of lkRoom.localParticipant.trackPublications.values()) {
@@ -596,15 +625,15 @@
 
         const unsub = new Map();
         lkRoom
-          .on(LiveKit.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          .on(window.LiveKit.RoomEvent.TrackSubscribed, (track, publication, participant) => {
             const detach = addTrackTile(track, participant.identity || 'ضيف');
             unsub.set(publication.sid, detach);
           })
-          .on(LiveKit.RoomEvent.TrackUnsubscribed, (_track, publication) => {
+          .on(window.LiveKit.RoomEvent.TrackUnsubscribed, (_track, publication) => {
             const d = unsub.get(publication.sid);
             if (d){ try{ d(); }catch(e){} unsub.delete(publication.sid); }
           })
-          .on(LiveKit.RoomEvent.Disconnected, () => cleanupGrid());
+          .on(window.LiveKit.RoomEvent.Disconnected, () => cleanupGrid());
 
         lkJoinBtn.disabled = true;
         lkLeaveBtn.disabled = false;
