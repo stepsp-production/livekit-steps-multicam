@@ -11,14 +11,13 @@
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- LiveKit: تحميل تسلسلي عبر <script> (jsDelivr -> unpkg -> livekit.io) -->
-  <!-- نحافظ على 'unsafe-inline' في CSP حتى يعمل onerror هنا -->
+  <!-- LiveKit UMD: تحميل تسلسلي (jsDelivr -> unpkg -> livekit.io) -->
   <script
     src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"
     onerror="(function(){var s=document.createElement('script');s.src='https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js';s.async=true;s.crossOrigin='anonymous';s.onerror=function(){var s2=document.createElement('script');s2.src='https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js';s2.async=true;s2.crossOrigin='anonymous';document.head.appendChild(s2);};document.head.appendChild(s);}())">
   </script>
 
-  <!-- أيقونة -->
+  <!-- فافيكون -->
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230b0b0f'/%3E%3Cpolygon points='26,20 26,44 46,32' fill='%2300c19a'/%3E%3C/svg%3E" />
 
@@ -108,7 +107,7 @@
     .tile video{width:100%;height:100%;object-fit:cover;display:block}
     .badge{position:absolute; left:6px; top:6px; background:#000a; color:#fff; font-size:10px; padding:2px 6px; border-radius:999px; border:1px solid #fff2}
 
-    /* بانر حالة بسيط */
+    /* بانر حالة لتحميل LiveKit */
     #lkStatus{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;background:#10151faa;border:1px solid #ffffff2a;color:#fff;border-radius:10px;padding:6px 10px;font-size:12px;display:none}
     #lkStatus.show{display:block}
   </style>
@@ -177,10 +176,8 @@
 
   <!-- إعدادات الشبكة -->
   <script>
-    // بدّل هذا لو عندك بروكسي HLS مختلف
-    window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
-    // بدّل هذا إلى خدمة الـ Render لديك (backend)
-    window.API_BASE = "https://steps-livekit-api.onrender.com";
+    window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";    /* عدّلها إن لزم */
+    window.API_BASE = "https://steps-livekit-api.onrender.com";  /* عدّلها إن لزم */
   </script>
 
   <!-- تعريف المصادر والقنوات -->
@@ -386,7 +383,7 @@
     document.addEventListener('keydown',(e)=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); startPlayback(); } if(e.key==='S'||e.key==='s'){ btnSplit.click(); } if(e.key==='F'||e.key==='f'){ btnFill.click(); } if(e.key==='M'||e.key==='m'){ btnSound.click(); } if(e.key==='ArrowLeft'){ gBack.click(); } if(e.key==='ArrowRight'){ gFwd.click(); } });
   </script>
 
-  <!-- ===== LiveKit (الانضمام) ===== -->
+  <!-- ===== LiveKit (الانضمام) — يدعم LiveKit & LiveKitClient ===== -->
   <script>
     const lkRoomSel   = document.getElementById('lkRoom');
     const lkNameInput = document.getElementById('lkName');
@@ -402,6 +399,9 @@
     let lkRoom = null;
     let localCamEnabled = true;
     let localMicEnabled = true;
+
+    /* >>> النقطة الأهم: هذه الدالة تعيد النيمسبيس الصحيح أياً كان اسمه */
+    function LK(){ return window.LiveKit || window.LiveKitClient; }
 
     function addTrackTile(track, label){
       const tile = document.createElement('div'); tile.className = 'tile';
@@ -425,7 +425,7 @@
       const t0=Date.now(); showStatus('جاري تحميل مكتبة LiveKit…', true);
       return new Promise((res,rej)=>{
         (function loop(){
-          if (window.LiveKit){ showStatus('', false); return res(true); }
+          if (LK()){ showStatus('', false); return res(true); }
           if (Date.now()-t0>timeoutMs){ showStatus('تعذّر تحميل مكتبة LiveKit. تحقّق من سياسة CSP أو إضافات الحجب.', true); return rej(new Error('LiveKit library did not load')); }
           setTimeout(loop,120);
         })();
@@ -446,15 +446,16 @@
       try{
         await ensureMediaPermission();
         await waitForLiveKitReady(20000);
-        if(!window.LiveKit){ throw new Error('LiveKit library is missing (blocked by CSP/AdBlock).'); }
+        const NS = LK();
+        if(!NS){ throw new Error('LiveKit library is missing (blocked by CSP/AdBlock).'); }
 
         const roomName = lkRoomSel.value;
         const displayName = lkNameInput.value.trim() || undefined;
         const { token, wsUrl } = await fetchLiveKitToken({ room: roomName, name: displayName });
 
-        lkRoom = await window.LiveKit.connect(wsUrl, token, { autoSubscribe: true, stopLocalTrackOnUnpublish: true });
+        lkRoom = await NS.connect(wsUrl, token, { autoSubscribe: true, stopLocalTrackOnUnpublish: true });
 
-        const tracks = await window.LiveKit.createLocalTracks({ audio: true, video: { facingMode: 'user' } });
+        const tracks = await NS.createLocalTracks({ audio: true, video: { facingMode: 'user' } });
         for (const t of tracks) await lkRoom.localParticipant.publishTrack(t);
 
         for (const pub of lkRoom.localParticipant.trackPublications.values()) {
@@ -463,13 +464,13 @@
 
         const unsub = new Map();
         lkRoom
-          .on(window.LiveKit.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          .on(NS.RoomEvent.TrackSubscribed, (track, publication, participant) => {
             const detach = addTrackTile(track, participant.identity || 'ضيف'); unsub.set(publication.sid, detach);
           })
-          .on(window.LiveKit.RoomEvent.TrackUnsubscribed, (_track, publication) => {
+          .on(NS.RoomEvent.TrackUnsubscribed, (_track, publication) => {
             const d = unsub.get(publication.sid); if (d){ try{ d(); }catch(e){} unsub.delete(publication.sid); }
           })
-          .on(window.LiveKit.RoomEvent.Disconnected, () => cleanupGrid());
+          .on(NS.RoomEvent.Disconnected, () => cleanupGrid());
 
         lkJoinBtn.disabled = true; lkLeaveBtn.disabled = false; lkToggleCam.disabled = false; lkToggleMic.disabled = false;
       } catch (e){
@@ -488,6 +489,7 @@
 
     lkJoinBtn.addEventListener('click', joinLiveKit);
     lkLeaveBtn.addEventListener('click', leaveLiveKit);
+
     lkToggleCam.addEventListener('click', async ()=>{ if(!lkRoom) return; localCamEnabled = !localCamEnabled; try{ await lkRoom.localParticipant.setCameraEnabled(localCamEnabled); }catch(e){} lkToggleCam.textContent = localCamEnabled ? 'الكاميرا' : 'تشغيل الكاميرا'; });
     lkToggleMic.addEventListener('click', async ()=>{ if(!lkRoom) return; localMicEnabled = !localMicEnabled; try{ await lkRoom.localParticipant.setMicrophoneEnabled(localMicEnabled); }catch(e){} lkToggleMic.textContent = localMicEnabled ? 'المايك' : 'تشغيل المايك'; });
   </script>
