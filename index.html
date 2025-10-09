@@ -11,19 +11,19 @@
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- LiveKit UMD (أساسي + بديل تلقائي) -->
+  <!-- LiveKit UMD loader + fallback -->
   <script>
-    (function loadLiveKit(){
-      var s=document.createElement('script');
-      s.src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js";
-      s.onload=function(){ window.__livekitReady=true; };
-      s.onerror=function(){
-        var alt=document.createElement('script');
-        alt.src="https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js";
-        alt.onload=function(){ window.__livekitReady=true; };
-        document.head.appendChild(alt);
-      };
-      document.head.appendChild(s);
+    (function loadLiveKitOnce(){
+      if (window.__lkLoading || window.LiveKit) return;
+      window.__lkLoading = true;
+      function ok(){ window.__livekitReady = true; }
+      function add(src, onerr){
+        var s=document.createElement('script');
+        s.src=src; s.async=true; s.onload=ok; s.onerror=onerr; document.head.appendChild(s);
+      }
+      add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+        add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){ /* both failed */ });
+      });
     })();
   </script>
 
@@ -79,8 +79,8 @@
 
     #gatePlay{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,rgba(0,0,0,.55),rgba(0,0,0,.2))}
     #gatePlay.hidden{display:none}
-    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bd);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bd);color:#fff;background:#111a;font-size:18px}
+    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bد);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bد);color:#fff;background:#111a;font-size:18px}
     #startBtn{min-width:160px}
 
     /* القائمة الجانبية */
@@ -184,9 +184,9 @@
 
   <!-- اضبط BASE لمسارات HLS -->
   <script>
-    // 1) عامل Cloudflare Workers يمرّر /hls/*:
+    // Cloudflare Worker يمرّر /hls/*
     window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
-    // 2) أو اتركه فارغًا لو لديك /api/hls/* على نفس الدومين:
+    // أو اتركه فارغًا لو لديك /api/hls/* محليًا:
     // window.HLS_BASE = "";
   </script>
 
@@ -521,7 +521,7 @@
     });
   </script>
 
-  <!-- ===== LiveKit ===== -->
+  <!-- ===== LiveKit (الانضمام) ===== -->
   <script>
     const lkRoomSel   = document.getElementById('lkRoom');
     const lkNameInput = document.getElementById('lkName');
@@ -531,7 +531,7 @@
     const lkToggleMic = document.getElementById('lkToggleMic');
     const lkGrid      = document.getElementById('lkGrid');
 
-    // عدّل هذا إلى دومين Render الذي يشغّل api/livekit-token
+    // استبدل هذا بدومين Render لديك
     const API_BASE = 'https://steps-livekit-api.onrender.com';
 
     let lkRoom = null;
@@ -574,13 +574,28 @@
       }
     }
 
+    function loadLiveKitNowIfMissing(){
+      if (window.LiveKit || window.__livekitReady) return;
+      // محاولة تحميل فورية (مرة إضافية) في حال منع التحميل الأول
+      (function(){
+        function add(src, onerr){
+          var s=document.createElement('script'); s.src=src; s.async=true;
+          s.onload=function(){ window.__livekitReady=true; };
+          s.onerror=onerr; document.head.appendChild(s);
+        }
+        add("https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js", function(){
+          add("https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js", function(){});
+        });
+      })();
+    }
+
     async function waitForLiveKitReady(timeoutMs){
       const t0=Date.now();
       return new Promise((res,rej)=>{
         (function loop(){
           if (window.LiveKit && window.__livekitReady) return res(true);
           if (Date.now()-t0>timeoutMs) return rej(new Error('LiveKit library did not load'));
-          setTimeout(loop,60);
+          setTimeout(loop,80);
         })();
       });
     }
@@ -603,10 +618,11 @@
       try{
         await ensureMediaPermission();
 
-        // تأكد من تحميل مكتبة LiveKit فعلاً قبل المتابعة
-        await waitForLiveKitReady(6000);
+        // لو المكتبة ناقصة، جرّب تحميلها الآن
+        loadLiveKitNowIfMissing();
+        await waitForLiveKitReady(8000);
         if(!window.LiveKit){
-          throw new Error('LiveKit library is missing. تحقق من مانع الإعلانات أو سياسات المتصفح/CSP.');
+          throw new Error('LiveKit library is missing (blocked by CSP/AdBlock). اسمح بتحميل cdn.jsdelivr.net أو unpkg.com.');
         }
 
         const roomName = lkRoomSel.value;
