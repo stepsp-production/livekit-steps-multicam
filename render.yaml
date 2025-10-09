@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: steps-livekit-api
+    env: node
+    plan: starter
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    autoDeploy: true
+    region: oregon
+    envVars:
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: LIVEKIT_WS_URL
+        sync: false
+      - key: LIVEKIT_HOST
+        sync: false
+      - key: SETUP_ADMIN_KEY
+        sync: false
+      - key: ORIGIN_BASE
+        sync: false
+      - key: UPSTREAM_PREFIX
+        value: "/hls"
+      - key: ALLOW_INSECURE_TLS
+        value: "false"
