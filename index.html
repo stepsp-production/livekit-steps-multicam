@@ -5,15 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Steps Co VIP Player</title>
 
-  <!-- HLS / DASH / YouTube / Vimeo -->
+  <!-- HLS فقط (بدون web worker لتفادي CSP) -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest" crossorigin="anonymous"></script>
-  <script src="https://cdn.dashjs.org/latest/dash.all.min.js" crossorigin="anonymous"></script>
+
+  <!-- YouTube/Vimeo (مسموح بها في CSP المرفق) -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- LiveKit UMD (مصدر واحد موثوق) -->
-  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"
-          crossorigin="anonymous"></script>
+  <!-- لا نضع LiveKit هنا؛ سنحمله ديناميكيًا مع لودر احتياطي -->
 
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230b0b0f'/%3E%3Cpolygon points='26,20 26,44 46,32' fill='%2300c19a'/%3E%3C/svg%3E" />
@@ -46,6 +45,7 @@
     .hint{position:absolute;top:20px;right:20px;z-index:8;background:#000a;color:#fff;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid #fff2}
     .split .hint,.main-full .hint{display:none}
 
+    /* إظهار/إخفاء تلقائي مع حركة الماوس */
     #utilityControls,#globalControls{position:absolute;z-index:12;display:flex;gap:8px;flex-wrap:wrap;transition:opacity .18s}
     #utilityControls{top:10px;right:10px}
     #globalControls{bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel-bg);padding:10px;border-radius:14px;border:1px solid var(--panel-bد);align-items:center;min-width:340px}
@@ -156,7 +156,7 @@
     <div id="timeLabel">00:00 / 00:00</div>
   </div>
 
-  <!-- إعداداتك: عدّل القيم التالية حسب بيئتك -->
+  <!-- إعدادات (عدّلها وفق بيئتك) -->
   <script>
     const HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";   // Worker
     const API_BASE = "https://steps-livekit-api.onrender.com"; // Render API
@@ -192,6 +192,7 @@
   </script>
 
   <script>
+    /* ====== أدوات مساعدة عامة ====== */
     const fatal=(msg)=>{ const f=document.getElementById('fatal'); f.textContent=msg; f.classList.add('show'); console.error('[FATAL]', msg); };
 
     const SAFETY_EDGE=0.80, SHOW_MIN_BUF=1.25, STARVED_RESEEK=0.25;
@@ -204,7 +205,6 @@
       fragLoadingTimeOut:10000, manifestLoadingTimeOut:8000, levelLoadingTimeOut:8000,
       xhrSetup:(xhr)=>{ try{xhr.withCredentials=false;}catch(e){} } };
 
-    function isAvc(l){return /avc1/i.test(l?.codecs||l?.codecsVideo||"");}
     function pickBestAvc(levels,capHeight=480){
       if(!levels?.length) return -1;
       const avc=levels.map((l,i)=>({i,h:l.height||0,avc:/avc1/i.test(l?.codecs||l?.codecsVideo||"")})).filter(x=>x.avc);
@@ -234,7 +234,6 @@
       video.addEventListener('stalled',()=>{ if(bufferedAhead(video)<0.3) starve(); });
       return hls;
     }
-
     function createVideoElement(url){
       const wrap=document.createElement('div'); wrap.className='layer'; wrap.style.cssText='position:absolute;inset:0;opacity:0';
       const v=document.createElement('video'); v.playsInline=true; v.muted=true; v.controls=false; v.preload='auto'; v.crossOrigin='anonymous'; v.style.cssText='width:100%;height:100%;object-fit:contain';
@@ -275,7 +274,6 @@
       const {wrap,video}=createVideoElement(window.sources[id]); mountTo(camContainer,wrap);
       const rec={wrap,video,ready:false}; video.addEventListener('canplay',()=>{rec.ready=true;},{once:true}); playersCache.set(id,rec); return rec;
     }
-
     function buildStreamList(){
       streamList.innerHTML='';
       (window.channelMap||[]).filter(ch=>hasHlsM3U8(ch.src)).forEach(ch=>{
@@ -351,7 +349,31 @@
     document.addEventListener('keydown',(e)=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); startPlayback(); } if(e.key==='S'||e.key==='s'){ btnSplit.click(); } if(e.key==='F'||e.key==='f'){ btnFill.click(); } if(e.key==='M'||e.key==='m'){ btnSound.click(); } if(e.key==='ArrowLeft'){ gBack.click(); } if(e.key==='ArrowRight'){ gFwd.click(); } });
   </script>
 
-  <!-- LiveKit: الانضمام -->
+  <!-- ===== لودر LiveKit مع مسارين (jsDelivr ثم CDN الرسمي) ===== -->
+  <script>
+    const LiveKitCDNs = [
+      "https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js",
+      "https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js"
+    ];
+    function loadScriptOnce(src){
+      return new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src=src; s.async=true; s.crossOrigin="anonymous";
+        s.onload=()=>resolve(src);
+        s.onerror=()=>reject(new Error('Failed to load '+src));
+        document.head.appendChild(s);
+      });
+    }
+    async function ensureLiveKitLoaded(){
+      if(window.LiveKit || window.LiveKitClient) return true;
+      for(const url of LiveKitCDNs){
+        try{ await loadScriptOnce(url); if(window.LiveKit || window.LiveKitClient){ console.log('[LK] loaded from', url); return true; } }catch(e){ console.warn(e.message); }
+      }
+      throw new Error('LiveKit library did not load');
+    }
+  </script>
+
+  <!-- ===== LiveKit: الانضمام ===== -->
   <script>
     const lkRoomSel   = document.getElementById('lkRoom');
     const lkNameInput = document.getElementById('lkName');
@@ -377,11 +399,7 @@
       try{ const s=await navigator.mediaDevices.getUserMedia({audio:true,video:{facingMode:'user'}}); s.getTracks().forEach(t=>t.stop()); return true; }
       catch(e){ alert('يجب منح إذن الكاميرا/المايك للانضمام.'); throw e; }
     }
-    async function waitForLK(ms){
-      const end=Date.now()+ms;
-      while(Date.now()<end){ if(ns()) return true; await new Promise(r=>setTimeout(r,120)); }
-      throw new Error('LiveKit library did not load');
-    }
+
     async function fetchLiveKitToken({ room, identity, name }){
       const resp = await fetch(`${window.API_BASE}/api/livekit-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({room,identity,name})});
       if(!resp.ok){ const txt=await resp.text().catch(()=> ''); throw new Error('Token request failed: '+resp.status+' '+txt); }
@@ -392,7 +410,7 @@
       if(lkRoom) return;
       try{
         await ensureMediaPermission();
-        await waitForLK(15000);
+        await ensureLiveKitLoaded(); // هنا التحميل الفعلي مع المسارين
         const LK=ns();
         const roomName=lkRoomSel.value;
         const displayName=lkNameInput.value.trim()||undefined;
@@ -429,6 +447,7 @@
     lkToggleMic.addEventListener('click',async()=>{ if(!lkRoom) return; localMicEnabled=!localMicEnabled; try{ await lkRoom.localParticipant.setMicrophoneEnabled(localMicEnabled);}catch(_){} lkToggleMic.textContent= localMicEnabled?'المايك':'تشغيل المايك'; });
   </script>
 
+  <!-- Debug اختياري لـ HLS -->
   <script>
     (function addHlsDebug(){
       function wire(v){const h=v&&v.__hls; if(!h) return;
