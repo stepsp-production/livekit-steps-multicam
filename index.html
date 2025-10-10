@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Steps Co VIP Player</title>
 
-  <!-- HLS فقط (بدون web worker لتفادي قيود CSP) -->
+  <!-- HLS (من jsDelivr). إن كانت سياسة CSP لديك 'self' فقط، يمكنك لاحقًا عمل Function مماثلة له وتحميله من /vendor/hls.js -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest" crossorigin="anonymous"></script>
 
   <!-- YouTube/Vimeo -->
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- تحسين التحميل -->
+  <!-- تحسين DNS/الاتصال -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
   <link rel="preconnect" href="https://cdn.livekit.io" crossorigin>
@@ -20,6 +20,7 @@
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="dns-prefetch" href="//unpkg.com">
 
+  <!-- أيقونة -->
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230b0b0f'/%3E%3Cpolygon points='26,20 26,44 46,32' fill='%2300c19a'/%3E%3C/svg%3E" />
 
@@ -51,10 +52,10 @@
     .hint{position:absolute;top:20px;right:20px;z-index:8;background:#000a;color:#fff;padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid #fff2}
     .split .hint,.main-full .hint{display:none}
 
-    /* إظهار/إخفاء تلقائي */
+    /* إظهار/إخفاء تلقائي لعناصر التحكم عند تحريك الماوس مثل أزرار الكاميرات */
     #utilityControls,#globalControls{position:absolute;z-index:12;display:flex;gap:8px;flex-wrap:wrap;transition:opacity .18s}
     #utilityControls{top:10px;right:10px}
-    #globalControls{bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel-bg);padding:10px;border-radius:14px;border:1px solid var(--panel-bد);align-items:center;min-width:340px}
+    #globalControls{bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel-bg);padding:10px;border-radius:14px;border:1px solid var(--panel-bd);align-items:center;min-width:340px}
     #globalControls.hidden{display:none}
 
     button{-webkit-tap-highlight-color:transparent;appearance:none;border:0;outline:0;cursor:pointer;background:var(--btn-bg);color:var(--btn-txt);padding:11px 12px;font-size:12px;font-weight:800;border-radius:12px;letter-spacing:.2px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px #000a,0 0 0 0 rgba(0,193,154,.28);transition:transform .12s,box-shadow .12s,background .12s}
@@ -66,8 +67,8 @@
 
     #gatePlay{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,rgba(0,0,0,.55),rgba(0,0,0,.2))}
     #gatePlay.hidden{display:none}
-    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bد);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bد);color:#fff;background:#111a;font-size:18px}
+    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bd);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bd);color:#fff;background:#111a;font-size:18px}
     #startBtn{min-width:160px}
 
     #streamPanel{position:absolute; top:0; left:0; height:100%; width:230px; z-index:12; background:none; padding:12px 10px; color:#fff; transition:opacity .18s; pointer-events:auto;}
@@ -98,7 +99,7 @@
       #streamPanel{width:190px}
     }
 
-    #lkPanel{position:absolute; bottom:14px; right:14px; z-index:20; background:var(--panel-bg); border:1px solid var(--panel-bد); border-radius:14px; padding:10px; backdrop-filter: blur(8px); display:flex; flex-direction:column; gap:8px; width: min(92vw, 520px);}
+    #lkPanel{position:absolute; bottom:14px; right:14px; z-index:20; background:var(--panel-bg); border:1px solid var(--panel-bd); border-radius:14px; padding:10px; backdrop-filter: blur(8px); display:flex; flex-direction:column; gap:8px; width: min(92vw, 520px);}
     #lkGrid{display:grid; grid-template-columns: repeat( auto-fit, minmax(120px,1fr) ); gap:8px; max-height:34vh; overflow:auto;}
     .tile{position:relative; background:#0b0b0f; border:1px solid #ffffff22; border-radius:10px; overflow:hidden; min-height:90px}
     .tile video{width:100%;height:100%;object-fit:cover;display:block}
@@ -162,9 +163,9 @@
     <div id="timeLabel">00:00 / 00:00</div>
   </div>
 
-  <!-- إعدادات -->
+  <!-- إعدادات عامة -->
   <script>
-    const HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";   // Worker لديك
+    const HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";   // Worker لديك لـHLS
     const API_BASE = "https://steps-livekit-api.onrender.com"; // Backend على Render
 
     (function defineSources(){
@@ -197,8 +198,8 @@
     })();
   </script>
 
+  <!-- منطق التشغيل والـ UI وHLS -->
   <script>
-    /* ====== أدوات مساعدة HLS/واجهة ====== */
     const fatal=(msg)=>{ const f=document.getElementById('fatal'); f.textContent=msg; f.classList.add('show'); console.error('[FATAL]', msg); };
 
     const SAFETY_EDGE=0.80, SHOW_MIN_BUF=1.25, STARVED_RESEEK=0.25;
@@ -354,9 +355,10 @@
     document.addEventListener('keydown',(e)=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); startPlayback(); } if(e.key==='S'||e.key==='s'){ btnSplit.click(); } if(e.key==='F'||e.key==='f'){ btnFill.click(); } if(e.key==='M'||e.key==='m'){ btnSound.click(); } if(e.key==='ArrowLeft'){ gBack.click(); } if(e.key==='ArrowRight'){ gFwd.click(); } });
   </script>
 
-  <!-- ===== لودر LiveKit مع تعدد نقاط CDN ===== -->
+  <!-- تحميل LiveKit أولاً من Pages Function المحلية -->
   <script>
     const LiveKitCDNsUMD = [
+      "/vendor/livekit-client.umd.min.js", // من نطاقك (Pages Functions)
       "https://cdn.jsdelivr.net/npm/livekit-client@2.5.0/dist/livekit-client.umd.min.js",
       "https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js",
       "https://cdn.livekit.io/libs/client-sdk/2.5.0/livekit-client.umd.min.js",
@@ -384,7 +386,7 @@
     const ns=()=> (window.LiveKit||window.LiveKitClient);
   </script>
 
-  <!-- ===== LiveKit: الانضمام ===== -->
+  <!-- الانضمام إلى LiveKit -->
   <script>
     const lkRoomSel   = document.getElementById('lkRoom');
     const lkNameInput = document.getElementById('lkName');
