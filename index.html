@@ -5,20 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Steps Co VIP Player</title>
 
-  <!-- المشغلات -->
+  <!-- Players -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
   <script src="https://player.vimeo.com/api/player.js"></script>
 
-  <!-- LiveKit UMD (المسار الأساسي) -->
+  <!-- LiveKit (UMD primary) -->
   <script
     src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"
-    crossorigin="anonymous"
-    onerror="/* سنتعامل مع الخطأ في اللودر الاحتياطي أدناه */">
+    crossorigin="anonymous">
   </script>
 
-  <!-- أيقونة -->
+  <!-- Favicon -->
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230b0b0f'/%3E%3Cpolygon points='26,20 26,44 46,32' fill='%2300c19a'/%3E%3C/svg%3E" />
 
@@ -26,6 +25,9 @@
     :root{ --btn-bg:#00c19a; --btn-bg-h:#00ad8a; --btn-bg-a:#009e7e; --btn-txt:#fff; --panel-bg:#0b0b0fe6; --panel-bd:#ffffff26; }
     *{box-sizing:border-box} html,body{height:100%}
     body{margin:0;background:#000;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+
+    #fatal{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:9999;background:#8b0000cc;color:#fff;padding:8px 12px;border:1px solid #ffb4b44d;border-radius:10px;font-size:12px;display:none}
+    #fatal.show{display:block}
 
     #playerContainer{position:relative;width:100vw;height:100vh}
     .videoFrame{position:absolute;top:0;right:0;width:100%;height:100%;background:#000;overflow:hidden}
@@ -49,7 +51,7 @@
 
     #utilityControls,#globalControls{position:absolute;z-index:12;display:flex;gap:8px;flex-wrap:wrap;transition:opacity .18s}
     #utilityControls{top:10px;right:10px}
-    #globalControls{bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel-bg);padding:10px;border-radius:14px;border:1px solid var(--panel-bd);align-items:center;min-width:340px}
+    #globalControls{bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel-bg);padding:10px;border-radius:14px;border:1px solid var(--panel-bد);align-items:center;min-width:340px}
     #globalControls.hidden{display:none}
 
     button{-webkit-tap-highlight-color:transparent;appearance:none;border:0;outline:0;cursor:pointer;background:var(--btn-bg);color:var(--btn-txt);padding:11px 12px;font-size:12px;font-weight:800;border-radius:12px;letter-spacing:.2px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 8px 18px #000a,0 0 0 0 rgba(0,193,154,.28);transition:transform .12s,box-shadow .12s,background .12s}
@@ -61,8 +63,8 @@
 
     #gatePlay{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,rgba(0,0,0,.55),rgba(0,0,0,.2))}
     #gatePlay.hidden{display:none}
-    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bd);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bd);color:#fff;background:#111a;font-size:18px}
+    .gate-card{background:var(--panel-bg);border:1px solid var(--panel-bد);border-radius:18px;padding:18px 20px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+    .gate-card .icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--panel-bد);color:#fff;background:#111a;font-size:18px}
     #startBtn{min-width:160px}
 
     #streamPanel{position:absolute; top:0; left:0; height:100%; width:230px; z-index:12; background:none; padding:12px 10px; color:#fff; transition:opacity .18s; pointer-events:auto;}
@@ -93,18 +95,15 @@
       #streamPanel{width:190px}
     }
 
-    #lkPanel{position:absolute; bottom:14px; right:14px; z-index:20; background:var(--panel-bg); border:1px solid var(--panel-bd); border-radius:14px; padding:10px; backdrop-filter: blur(8px); display:flex; flex-direction:column; gap:8px; width: min(92vw, 520px);}
+    #lkPanel{position:absolute; bottom:14px; right:14px; z-index:20; background:var(--panel-bg); border:1px solid var(--panel-bد); border-radius:14px; padding:10px; backdrop-filter: blur(8px); display:flex; flex-direction:column; gap:8px; width: min(92vw, 520px);}
     #lkGrid{display:grid; grid-template-columns: repeat( auto-fit, minmax(120px,1fr) ); gap:8px; max-height:34vh; overflow:auto;}
     .tile{position:relative; background:#0b0b0f; border:1px solid #ffffff22; border-radius:10px; overflow:hidden; min-height:90px}
     .tile video{width:100%;height:100%;object-fit:cover;display:block}
     .badge{position:absolute; left:6px; top:6px; background:#000a; color:#fff; font-size:10px; padding:2px 6px; border-radius:999px; border:1px solid #fff2}
-
-    #lkStatus{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:30;background:#10151faa;border:1px solid #ffffff2a;color:#fff;border-radius:10px;padding:6px 10px;font-size:12px;display:none}
-    #lkStatus.show{display:block}
   </style>
 </head>
 <body>
-  <div id="lkStatus" role="status" aria-live="polite"></div>
+  <div id="fatal"></div>
 
   <div id="playerContainer" class="ui-visible" aria-label="مشغّل متعدد الكاميرات">
     <aside id="streamPanel" aria-label="مصادر البث">
@@ -127,6 +126,7 @@
       </div>
     </div>
 
+    <!-- LiveKit panel -->
     <div id="lkPanel" aria-label="LiveKit Panel">
       <div style="font-weight:800;margin-bottom:6px">الغرفة المباشرة (LiveKit)</div>
       <div id="lkControls" style="display:flex;gap:6px;flex-wrap:wrap">
@@ -140,7 +140,7 @@
         <button id="lkLeave" disabled>مغادرة</button>
         <button id="lkToggleCam" disabled>الكاميرا</button>
         <button id="lkToggleMic" disabled>المايك</button>
-        <span id="lkHint" class="text" style="color:#eaeaf0b3;font-size:11px">لو لم تظهر نافذة إذن الكاميرا/المايك، افحص أيقونة القفل بجانب العنوان.</span>
+        <span id="lkHint" class="text" style="color:#eaeaf0b3;font-size:11px">اسمح بأذونات الكاميرا/المايك من أيقونة القفل إن لم تظهر النافذة.</span>
       </div>
       <div id="lkGrid" aria-live="polite"></div>
     </div>
@@ -160,17 +160,48 @@
     <div id="timeLabel">00:00 / 00:00</div>
   </div>
 
-  <!-- إعداداتك (عدّلها إن لزم) -->
+  <!-- ===== CONFIG + SOURCES (مهم جدًا أن يسبق التهيئة) ===== -->
   <script>
-    window.HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";
-    window.API_BASE = "https://steps-livekit-api.onrender.com";
+    // عدّل هذه القيم إن لزم
+    const HLS_BASE = "https://hls-proxy.it-f2c.workers.dev";   // Cloudflare Worker proxy
+    const API_BASE = "https://steps-livekit-api.onrender.com"; // Render (API)
+
+    // بناء الروابط
+    (function defineSources(){
+      const BASE=(HLS_BASE||"").replace(/\/$/,"");
+      const build=(p)=>BASE?`${BASE}${p}`:p;
+
+      window.sources = {
+        main: build("/hls/live/playlist.m3u8"),
+        cam1: build("/hls/lastone/playlist.m3u8"),
+        cam2: build("/hls/live2/playlist.m3u8"),
+        cam3: build("/hls/live3/playlist.m3u8"),
+        cam4: build("/hls/live4/playlist.m3u8"),
+        cam5: build("/hls/live5/playlist.m3u8"),
+        cam6: build("/hls/live6/playlist.m3u8"),
+        cam7: build("/hls/live7/playlist.m3u8"),
+      };
+
+      window.channelMap = [
+        {id:'main',label:'MAIN',src:sources.main},
+        {id:'cam1',label:'Cam1',src:sources.cam1},
+        {id:'cam2',label:'Cam2',src:sources.cam2},
+        {id:'cam3',label:'Cam3',src:sources.cam3},
+        {id:'cam4',label:'Cam4',src:sources.cam4},
+        {id:'cam5',label:'Cam5',src:sources.cam5},
+        {id:'cam6',label:'DRONE',src:sources.cam6},
+        {id:'cam7',label:'SINEFLEX',src:sources.cam7},
+      ];
+      // فحص سريع
+      if(!sources.main) { const f=document.getElementById('fatal'); f.textContent='تعذّر بناء روابط HLS. عدّل HLS_BASE.'; f.classList.add('show'); }
+      window.API_BASE = API_BASE;
+    })();
   </script>
 
-  <!-- ===== لودر احتياطي لمكتبة LiveKit ===== -->
+  <!-- ===== LiveKit Loader fallback (UMD→UMD بديل→ESM) ===== -->
   <script>
     (function robustLiveKitLoader(){
-      // إن لم يظهر global خلال 2s، نحاول مسارات UMD أخرى + تحميل ESM ديناميكيًا
-      const wait = (ms)=>new Promise(r=>setTimeout(r,ms));
+      const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
       async function tryUMD(src){
         return new Promise(res=>{
           const s=document.createElement('script');
@@ -183,44 +214,27 @@
         return new Promise(res=>{
           const s=document.createElement('script');
           s.type='module';
-          // عند اكتمال الاستيراد نضع global
-          s.textContent = `
-            import * as LK from '${url}';
-            window.LiveKit = window.LiveKit || LK;
-            window.LiveKitClient = window.LiveKitClient || LK;
-            window.dispatchEvent(new Event('livekit-module-ready'));
-          `;
-        s.onload=()=>res(true); s.onerror=()=>res(false);
-        document.head.appendChild(s);
+          s.textContent=`import * as LK from '${url}'; window.LiveKit = window.LiveKit||LK; window.LiveKitClient = window.LiveKitClient||LK;`;
+          s.onload=()=>res(true); s.onerror=()=>res(false);
+          document.head.appendChild(s);
         });
       }
       (async()=>{
-        // مُهلة قصيرة لرؤية الـUMD الأساسي
         for(let i=0;i<10;i++){ if(window.LiveKit||window.LiveKitClient) return; await wait(200); }
-
-        // محاولات UMD بديلة
-        if(!(window.LiveKit||window.LiveKitClient)){
-          await tryUMD('https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js');
-        }
-        if(!(window.LiveKit||window.LiveKitClient)){
-          await tryUMD('https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js');
-        }
-
-        // لو ما زال غير متاح — استيراد ES Module
-        if(!(window.LiveKit||window.LiveKitClient)){
-          await tryModule('https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.min.js');
-        }
-        if(!(window.LiveKit||window.LiveKitClient)){
-          await tryModule('https://unpkg.com/livekit-client@2/dist/livekit-client.min.js');
-        }
+        if(!(window.LiveKit||window.LiveKitClient)) await tryUMD('https://unpkg.com/livekit-client@2/dist/livekit-client.umd.min.js');
+        if(!(window.LiveKit||window.LiveKitClient)) await tryUMD('https://cdn.livekit.io/libs/client-sdk/2.x/livekit-client.umd.min.js');
+        if(!(window.LiveKit||window.LiveKitClient)) await tryModule('https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.min.js');
+        if(!(window.LiveKit||window.LiveKitClient)) await tryModule('https://unpkg.com/livekit-client@2/dist/livekit-client.min.js');
       })();
     })();
   </script>
 
-  <!-- ===== المشغّل (HLS + UI) ===== -->
+  <!-- ===== Player + UI ===== -->
   <script>
+    const fatal=(msg)=>{ const f=document.getElementById('fatal'); f.textContent=msg; f.classList.add('show'); console.error('[FATAL]', msg); };
+
     const SAFETY_EDGE=0.80, SHOW_MIN_BUF=1.25, STARVED_RESEEK=0.25;
-    const hasHlsM3U8 = (u) => typeof u === 'string' && /\.m3u8(\?.*)?$/i.test(u);
+    const hasHlsM3U8=(u)=>typeof u==='string' && /\.m3u8(\?.*)?$/i.test(u);
 
     const HLS_CFG={ lowLatencyMode:false, liveSyncDurationCount:3, liveMaxLatencyDurationCount:6, maxLiveSyncPlaybackRate:1.0,
       maxBufferLength:18, backBufferLength:14, maxBufferSize:40*1000*1000, capLevelToPlayerSize:true, enableWorker:false,
@@ -317,8 +331,11 @@
     function markActiveList(){ document.querySelectorAll('.stream-item').forEach(el=>{el.classList.toggle('active',el.dataset.cam===currentCam);}); }
 
     function initOnce(){
-      initMain(); const first=getOrCreateCam(currentCam); first.wrap.style.opacity='1'; activePlayer=first.video;
-      buildStreamList(); markActiveList();
+      try{
+        if(!window.sources || !window.sources.main) return fatal('مصادر HLS غير معرّفة');
+        initMain(); const first=getOrCreateCam(currentCam); first.wrap.style.opacity='1'; activePlayer=first.video;
+        buildStreamList(); markActiveList();
+      }catch(e){ fatal('فشل التهيئة الأولى: '+(e?.message||e)); }
     }
     initOnce();
 
@@ -375,7 +392,7 @@
     document.addEventListener('keydown',(e)=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); startPlayback(); } if(e.key==='S'||e.key==='s'){ btnSplit.click(); } if(e.key==='F'||e.key==='f'){ btnFill.click(); } if(e.key==='M'||e.key==='m'){ btnSound.click(); } if(e.key==='ArrowLeft'){ gBack.click(); } if(e.key==='ArrowRight'){ gFwd.click(); } });
   </script>
 
-  <!-- ===== LiveKit (Join) ===== -->
+  <!-- ===== LiveKit Join ===== -->
   <script>
     const lkRoomSel   = document.getElementById('lkRoom');
     const lkNameInput = document.getElementById('lkName');
@@ -384,43 +401,31 @@
     const lkToggleCam = document.getElementById('lkToggleCam');
     const lkToggleMic = document.getElementById('lkToggleMic');
     const lkGrid      = document.getElementById('lkGrid');
-    const lkStatus    = document.getElementById('lkStatus');
-    const API_BASE = window.API_BASE || '';
 
-    let lkRoom = null, localCamEnabled = true, localMicEnabled = true;
-
-    function LK(){ return window.LiveKit || window.LiveKitClient; }
-    function showStatus(msg){ lkStatus.textContent=msg||''; lkStatus.classList.toggle('show', !!msg); }
+    let lkRoom=null, localCamEnabled=true, localMicEnabled=true;
+    const NS = ()=> (window.LiveKit||window.LiveKitClient);
 
     function addTrackTile(track, label){
-      const tile = document.createElement('div'); tile.className = 'tile';
-      const badge = document.createElement('div'); badge.className = 'badge'; badge.textContent = label; tile.appendChild(badge);
-      const mediaEl = track.attach();
-      if(mediaEl instanceof HTMLVideoElement){ mediaEl.playsInline = true; mediaEl.muted = (label === 'أنا'); mediaEl.autoplay = true; }
-      tile.appendChild(mediaEl); lkGrid.appendChild(tile);
-      return () => { try{ track.detach().forEach(el => el.remove()); }catch(e){} try{ tile.remove(); }catch(e){} };
+      const tile=document.createElement('div'); tile.className='tile';
+      const badge=document.createElement('div'); badge.className='badge'; badge.textContent=label; tile.appendChild(badge);
+      const el=track.attach(); if(el instanceof HTMLVideoElement){ el.playsInline=true; el.muted=(label==='أنا'); el.autoplay=true; }
+      tile.appendChild(el); lkGrid.appendChild(tile);
+      return ()=>{ try{track.detach().forEach(e=>e.remove());}catch(_){} try{tile.remove();}catch(_){} };
     }
-    function cleanupGrid(){ [...lkGrid.children].forEach(ch => ch.remove()); }
+    function cleanupGrid(){ [...lkGrid.children].forEach(ch=>ch.remove()); }
 
     async function ensureMediaPermission(){
-      try{ const s = await navigator.mediaDevices.getUserMedia({ audio:true, video:{ facingMode:'user' } }); s.getTracks().forEach(t=>t.stop()); return true; }
-      catch(err){ alert('يجب منح إذن الكاميرا/المايك للانضمام. من أيقونة القفل بجانب العنوان اسمح بالوصول.'); throw err; }
+      try{ const s=await navigator.mediaDevices.getUserMedia({audio:true,video:{facingMode:'user'}}); s.getTracks().forEach(t=>t.stop()); return true; }
+      catch(e){ alert('يجب منح إذن الكاميرا/المايك للانضمام.'); throw e; }
     }
-
     async function waitForLiveKitReady(ms){
-      const until = Date.now() + ms; showStatus('جاري تحميل مكتبة LiveKit…');
-      while(Date.now() < until){ if(LK()){ showStatus(''); return true; } await new Promise(r=>setTimeout(r,120)); }
-      showStatus('تعذّر تحميل مكتبة LiveKit. تحقق من سياسة CSP أو إضافات الحجب.');
+      const end=Date.now()+ms;
+      while(Date.now()<end){ if(NS()) return true; await new Promise(r=>setTimeout(r,120)); }
       throw new Error('LiveKit library did not load');
     }
-
     async function fetchLiveKitToken({ room, identity, name }){
-      if(!API_BASE){ throw new Error('API_BASE غير محدد'); }
-      const resp = await fetch(`${API_BASE}/api/livekit-token`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room, identity, name })
-      });
-      if(!resp.ok){ const txt = await resp.text().catch(()=> ''); throw new Error('Token request failed: ' + resp.status + ' ' + txt); }
+      const resp = await fetch(`${window.API_BASE}/api/livekit-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({room,identity,name})});
+      if(!resp.ok){ const txt=await resp.text().catch(()=> ''); throw new Error('Token request failed: '+resp.status+' '+txt); }
       return resp.json();
     }
 
@@ -429,55 +434,51 @@
       try{
         await ensureMediaPermission();
         await waitForLiveKitReady(20000);
-        const NS = LK();
+        const LK=NS();
 
-        const roomName = lkRoomSel.value;
-        const displayName = lkNameInput.value.trim() || undefined;
-        const { token, wsUrl } = await fetchLiveKitToken({ room: roomName, name: displayName });
+        const roomName=lkRoomSel.value;
+        const displayName=lkNameInput.value.trim()||undefined;
+        const { token, wsUrl } = await fetchLiveKitToken({ room:roomName, name:displayName });
 
-        lkRoom = await NS.connect(wsUrl, token, { autoSubscribe: true, stopLocalTrackOnUnpublish: true });
-        const tracks = await NS.createLocalTracks({ audio: true, video: { facingMode: 'user' } });
-        for (const t of tracks) await lkRoom.localParticipant.publishTrack(t);
+        lkRoom = await LK.connect(wsUrl, token, { autoSubscribe:true, stopLocalTrackOnUnpublish:true });
+        const tracks = await LK.createLocalTracks({ audio:true, video:{ facingMode:'user' } });
+        for(const t of tracks) await lkRoom.localParticipant.publishTrack(t);
 
-        for (const pub of lkRoom.localParticipant.trackPublications.values()) if (pub.track) addTrackTile(pub.track, 'أنا');
+        for(const pub of lkRoom.localParticipant.trackPublications.values()) if(pub.track) addTrackTile(pub.track,'أنا');
 
-        const unsub = new Map();
-        lkRoom
-          .on(NS.RoomEvent.TrackSubscribed, (track, publication, participant) => { const d = addTrackTile(track, participant.identity || 'ضيف'); unsub.set(publication.sid, d); })
-          .on(NS.RoomEvent.TrackUnsubscribed, (_track, publication) => { const d = unsub.get(publication.sid); if (d){ try{ d(); }catch(e){} unsub.delete(publication.sid);} })
-          .on(NS.RoomEvent.Disconnected, () => cleanupGrid());
+        const unsub=new Map();
+        lkRoom.on(LK.RoomEvent.TrackSubscribed,(track, publication, participant)=>{ const d=addTrackTile(track, participant.identity||'ضيف'); unsub.set(publication.sid,d); })
+              .on(LK.RoomEvent.TrackUnsubscribed,(_t, publication)=>{ const d=unsub.get(publication.sid); if(d){ try{d();}catch(_){} unsub.delete(publication.sid);} })
+              .on(LK.RoomEvent.Disconnected,()=>cleanupGrid());
 
-        lkJoinBtn.disabled = true; lkLeaveBtn.disabled = false; lkToggleCam.disabled = false; lkToggleMic.disabled = false;
-      } catch (e){
+        lkJoinBtn.disabled=true; lkLeaveBtn.disabled=false; lkToggleCam.disabled=false; lkToggleMic.disabled=false;
+      }catch(e){
         console.error('joinLiveKit error', e);
         alert('تعذّر الانضمام: ' + (e?.message || e));
       }
     }
-
     async function leaveLiveKit(){
       if(!lkRoom) return;
-      try{ await lkRoom.disconnect(); }catch(e){}
-      lkRoom = null; cleanupGrid();
-      lkJoinBtn.disabled = false; lkLeaveBtn.disabled = true; lkToggleCam.disabled = true; lkToggleMic.disabled = true;
-      localCamEnabled = true; localMicEnabled = true;
+      try{ await lkRoom.disconnect(); }catch(_){}
+      lkRoom=null; cleanupGrid();
+      lkJoinBtn.disabled=false; lkLeaveBtn.disabled=true; lkToggleCam.disabled=true; lkToggleMic.disabled=true;
+      localCamEnabled=true; localMicEnabled=true;
     }
-
-    lkJoinBtn.addEventListener('click', joinLiveKit);
-    lkLeaveBtn.addEventListener('click', leaveLiveKit);
-    lkToggleCam.addEventListener('click', async ()=>{ if(!lkRoom) return; localCamEnabled = !localCamEnabled; try{ await lkRoom.localParticipant.setCameraEnabled(localCamEnabled); }catch(e){} lkToggleCam.textContent = localCamEnabled ? 'الكاميرا' : 'تشغيل الكاميرا'; });
-    lkToggleMic.addEventListener('click', async ()=>{ if(!lkRoom) return; localMicEnabled = !localMicEnabled; try{ await lkRoom.localParticipant.setMicrophoneEnabled(localMicEnabled); }catch(e){} lkToggleMic.textContent = localMicEnabled ? 'المايك' : 'تشغيل المايك'; });
+    lkJoinBtn.addEventListener('click',joinLiveKit);
+    lkLeaveBtn.addEventListener('click',leaveLiveKit);
+    lkToggleCam.addEventListener('click',async()=>{ if(!lkRoom) return; localCamEnabled=!localCamEnabled; try{ await lkRoom.localParticipant.setCameraEnabled(localCamEnabled);}catch(_){} lkToggleCam.textContent= localCamEnabled?'الكاميرا':'تشغيل الكاميرا'; });
+    lkToggleMic.addEventListener('click',async()=>{ if(!lkRoom) return; localMicEnabled=!localMicEnabled; try{ await lkRoom.localParticipant.setMicrophoneEnabled(localMicEnabled);}catch(_){} lkToggleMic.textContent= localMicEnabled?'المايك':'تشغيل المايك'; });
   </script>
 
-  <!-- Debug HLS اختياري -->
+  <!-- (اختياري) HLS Debug -->
   <script>
     (function addHlsDebug(){
-      function wireDebug(video){
-        const h=video && video.__hls; if(!h) return;
-        h.on(Hls.Events.MANIFEST_PARSED,(_,data)=>{console.log('[HLS] MANIFEST_PARSED levels=',(data&&data.levels||[]).map(l=>({h:l.height,codecs:l.codecs})));});
-        h.on(Hls.Events.LEVEL_LOADED,(_,data)=>{console.log('[HLS] LEVEL_LOADED targetduration=',data?.details?.targetduration,'frags=',data?.details?.fragments?.length);});
-        h.on(Hls.Events.ERROR,(_,err)=>{console.error('[HLS] ERROR',err?.type,err?.details,err);});
+      function wire(v){const h=v&&v.__hls; if(!h) return;
+        h.on(Hls.Events.MANIFEST_PARSED,(_,d)=>console.log('[HLS] levels=',(d?.levels||[]).map(l=>({h:l.height,codecs:l.codecs}))));
+        h.on(Hls.Events.LEVEL_LOADED,(_,d)=>console.log('[HLS] targetdur=',d?.details?.targetduration));
+        h.on(Hls.Events.ERROR,(_,e)=>console.error('[HLS] ERROR',e?.type,e?.details,e));
       }
-      const mo=new MutationObserver(()=>{ document.querySelectorAll('video').forEach(v=>{ if(!v.__debugWired && v.__hls){ v.__debugWired=true; wireDebug(v); } }); });
+      const mo=new MutationObserver(()=>{ document.querySelectorAll('video').forEach(v=>{ if(!v.__debugWired && v.__hls){ v.__debugWired=true; wire(v); } }); });
       mo.observe(document.body,{childList:true,subtree:true});
     })();
   </script>
